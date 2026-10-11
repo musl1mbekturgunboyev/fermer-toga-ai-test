@@ -64,6 +64,8 @@ footer{padding:30px 0 90px;color:var(--mut);font-size:.9rem}
 .hero{position:relative;overflow:hidden}.rv{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.2,1);transition-delay:var(--d,0ms)}.rv.in{opacity:1;transform:none}
 .blob{position:absolute;border-radius:50%;filter:blur(44px);opacity:.3;animation:fl 9s ease-in-out infinite alternate;pointer-events:none}@keyframes fl{to{transform:translate(30px,-24px) scale(1.15)}}
 .card{transition:transform .2s,box-shadow .2s}.card:hover{transform:translateY(-3px)}
+body{overflow-x:hidden}img{max-width:100%}
+@media(max-width:560px){.top .wrap{height:auto;min-height:60px;padding:8px 12px;flex-wrap:wrap}.top nav{gap:6px!important;flex-wrap:wrap;justify-content:flex-end}.top .btn{min-height:40px;padding:0 12px;font-size:.88rem;white-space:nowrap}.top select{min-height:40px!important;max-width:100px;font-size:.85rem}.brand span{display:none}.wrap{padding:0 14px}.main{padding:16px 14px 100px}h1{font-size:clamp(1.8rem,8vw,2.4rem)}.btn{padding:0 16px}.hero{padding:28px 0 20px}}
 @media(min-width:801px) and (max-width:1100px){.side{width:84px}.side a{font-size:0;gap:0;justify-content:center}.side a span{font-size:1.4rem}.side a.brand span{display:none}}
 @media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none}*{animation:none!important;transition:none!important}}
 </style>
@@ -270,9 +272,13 @@ async function onSession(se){const id=se.user.id;fresh();S.user=String(se.user.u
   if(st.data&&st.data.json){try{const j=JSON.parse(st.data.json);KEYS.forEach(k=>{if(j[k]!==undefined)S[k]=j[k]})}catch(_){}}
   DB={set:({json})=>SB.from('app_state').upsert({user_id:id,json})};last=JSON.stringify(Object.fromEntries(KEYS.map(k=>[k,S[k]])));
   if(['','#/','#/login','#/register'].includes(location.hash))location.hash='#/app';else render()}
+function authErr(m){const k=/after (\d+) seconds/.exec(m);if(k)return 'Xavfsizlik uchun '+k[1]+' soniyadan keyin qayta urinib ko‘ring. Ro‘yxatdan o‘tgan bo‘lsangiz, emailingizdagi xatni (Spam papkasini ham) tekshiring.';
+ if(/Invalid login/i.test(m))return 'Email yoki parol noto‘g‘ri.';if(/already registered/i.test(m))return 'Bu email bilan hisob mavjud. “Kirish” bo‘limidan foydalaning.';
+ if(/rate limit/i.test(m))return 'Juda ko‘p xat yuborildi. Birozdan keyin qayta urinib ko‘ring.';if(/not confirmed/i.test(m))return 'Email tasdiqlanmagan. Pochtangizdagi xatni tekshiring.';
+ if(/at least/i.test(m))return 'Parol kamida 8 belgidan iborat bo‘lishi kerak.';return 'Xatolik yuz berdi. Qayta urinib ko‘ring.'}
 async function doAuth(em,pw,meta){const er=$('#er');er.textContent='';er.style.color='var(--bad)';if(!SB){er.textContent='Server sozlanmagan.';return}
   const r=meta?await SB.auth.signUp({email:em,password:pw,options:{data:meta,emailRedirectTo:location.origin}}):await SB.auth.signInWithPassword({email:em,password:pw});
-  if(r.error){er.textContent=/Invalid login/i.test(r.error.message)?'Email yoki parol noto‘g‘ri.':'Xatolik: '+r.error.message;return}
+  if(r.error){er.style.color='var(--bad)';er.textContent=authErr(r.error.message);return}
   if(!r.data.session){er.style.color='var(--ok)';er.textContent='Emailingizga tasdiqlash xati yuborildi. Havolani bosing.';return}
   S.ob={s:0,a:{}};await onSession(r.data.session);if(meta)location.hash='#/onboarding'}
 async function delAcc(){try{await api('/api/delete-account',{});await SB.auth.signOut();location.href='/'}catch(_){toast('Hisobni o‘chirib bo‘lmadi. Qayta urinib ko‘ring.')}}
