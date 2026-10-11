@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: fermer-toga-ai
+    runtime: node
+    plan: free            # doimiy ishlashi uchun "starter" ga o‘zgartiring
+    buildCommand: npm install --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: CRON_SECRET
+        generateValue: true
+      - key: PAY_INFO
+        sync: false
