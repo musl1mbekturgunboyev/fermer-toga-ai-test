@@ -21,3 +21,11 @@ services:
         generateValue: true
       - key: PAY_INFO
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: AI_PRIORITY
+        value: openai,gemini
+      - key: LISTING_FEE_MODE
+        value: "off"

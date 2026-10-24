@@ -27,6 +27,7 @@ http.createServer((req, res) => {
     return;
   }
   const f = path.normalize(path.join(pub, u.pathname === '/' ? 'index.html' : decodeURIComponent(u.pathname)));
+  if (u.pathname === '/i18n.json' && !fs.existsSync(f)) { res.setHeader('Content-Type', 'application/json'); return res.end('{}'); }
   if (!f.startsWith(pub) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) return res.status(404).end('Topilmadi');
   res.setHeader('Content-Type', T[path.extname(f)] || 'application/octet-stream');
   fs.createReadStream(f).pipe(res);

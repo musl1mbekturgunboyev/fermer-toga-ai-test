@@ -66,3 +66,14 @@ create policy send_msg on listing_messages for insert with check(from_id=auth.ui
 insert into storage.buckets(id,name,public) values('listing-photos','listing-photos',true) on conflict do nothing;
 create policy lp_up on storage.objects for insert with check(bucket_id='listing-photos' and (storage.foldername(name))[1]=auth.uid()::text);
 -- Pro berish (qo‘lda): insert into subscriptions(owner_id,plan,status,period_end) values('<user id>','Pro','active',now()+interval '30 days');
+
+-- ===== v1.3: bozor (rasm tekshiruvi, saqlanganlar) =====
+alter table listings add column if not exists photos jsonb default '[]';
+-- Rasmni foydalanuvchi to‘g‘ridan-to‘g‘ri yuklay olmasin: faqat server (AI tekshiruvidan keyin) yuklaydi
+drop policy if exists lp_up on storage.objects;
+-- Sotilgan e’lonlar ham ko‘rinsin (belgisi bilan)
+drop policy if exists read_listings on listings;
+create policy read_listings on listings for select using((status in('active','sold') and auth.uid() is not null) or seller_id=auth.uid() or is_admin());
+create table if not exists listing_favorites(user_id uuid references auth.users on delete cascade, listing_id uuid references listings on delete cascade, created_at timestamptz default now(), primary key(user_id,listing_id));
+alter table listing_favorites enable row level security;
+create policy own_fav on listing_favorites for all using(user_id=auth.uid()) with check(user_id=auth.uid());

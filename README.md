@@ -39,3 +39,9 @@ Ro‘yxatdan o‘ting, so‘ng SQL Editor'da: `update profiles set role='admin' 
 - Hozircha onlayn to‘lov yo‘q: to‘lamagan sotuvchining e’loni "to‘lov kutilmoqda" holatida turadi, `PAY_INFO` matni ko‘rsatiladi. To‘lov kelgach admin panelda "Tasdiqlash"ni bosasiz. Pro berish: admin panelda foydalanuvchi ID, tarif va oy kiritiladi.
 - Yangi SQL qismini ("Hayvon bozori") Supabase'da ishga tushiring. E’lon rasmlari ochiq bucket'da saqlanadi.
 - Chat: xaridor va sotuvchi o‘rtasida, telefon raqam esa faqat tizimga kirgan foydalanuvchilarga ko‘rinadi.
+
+## v1.3: ikki AI (ChatGPT + Gemini) va chorva bozori
+- **AI almashinuvi:** `AI_PRIORITY=openai,gemini`. Birinchi AI tokeni tugasa (429/402), kaliti yaroqsiz bo‘lsa yoki javob bermasa, tizim 10 daqiqaga uni o‘chirib, ikkinchisiga o‘tadi. Bitta kalit yetarli, lekin ikkalasi bo‘lsa sayt to‘xtamaydi. Gemini kaliti: aistudio.google.com/apikey. Admin panelda AI holati ko‘rinadi.
+- **Rasm tekshiruvi:** e’lon rasmi AI orqali tekshiriladi: jonli hayvon bo‘lmasa (buyum, mahsulot, go‘sht, multfilm, odam) e’lon qabul qilinmaydi; tanlangan tur rasmga mos kelishi ham tekshiriladi. Rasm faqat tekshiruvdan o‘tgach saqlanadi. AI hayvon rasmini ishonchli tekshiradi, lekin rasm sotuvchining o‘zinikimi, buni aniqlay olmaydi.
+- **E’lon to‘lovi:** `LISTING_FEE_MODE=off` (hozirgi: e’lon bepul, darrov chiqadi) yoki `manual` (10 000 so‘m, Pro bepul, admin tasdiqlaydi).
+- **Supabase'da yangi SQL:** `schema.sql` oxiridagi "v1.3" qismini ishga tushiring.

@@ -16,6 +16,7 @@ module.exports = async (req, res) => {
     scans: await cnt('ai_usage?select=id&kind=eq.scan&at=gte.' + since),
     chats: await cnt('ai_usage?select=id&kind=eq.chat&at=gte.' + since),
     recent: await (await q('profiles?select=full_name,region,created_at&order=created_at.desc&limit=8')).json(),
+    ai: require('./_ai').status(),
     pending: await (await q('listings?select=id,title,phone,price&status=eq.pending_payment&order=created_at.desc&limit=30')).json(),
     audit: await (await q('audit_logs?select=at,action&order=at.desc&limit=8')).json()
   });
