@@ -4,9 +4,15 @@ const cool = {}, good = {}; // provayder -> o‘chiq vaqt; ishlagan model
 const T = ms => AbortSignal.timeout(ms);
 const fail = (r, j) => Object.assign(new Error((j && j.error && (j.error.message || j.error)) || 'AI xatosi (' + r.status + ')'), { status: r.status });
 const models = (env, def) => [...new Set([process.env[env], ...def].filter(Boolean))];
+const SWITCH = [404, 429, 500, 502, 503, 504]; // shu xatolarda boshqa modelni sinaymiz (band yoki limit modelga xos bo‘ladi)
 const tryModels = async (name, list, fn) => {
-  const order = good[name] ? [good[name], ...list.filter(m => m !== good[name])] : list; let last;
-  for (const m of order) { try { const t = await fn(m); good[name] = m; return t; } catch (e) { last = e; if (e.status !== 404) throw e; } }
+  let last;
+  for (let round = 0; round < 2; round++) {
+    const order = good[name] ? [good[name], ...list.filter(m => m !== good[name])] : list;
+    for (const m of order) { try { const t = await fn(m); good[name] = m; return t; } catch (e) { last = e; if (!SWITCH.includes(e.status)) throw e; } }
+    if (![500, 502, 503, 504].includes(last.status)) break;
+    await new Promise(r => setTimeout(r, 1500)); // hammasi band bo‘lsa, 1,5 soniya kutib bir marta qayta urinamiz
+  }
   throw last;
 };
 const P = {
@@ -24,7 +30,7 @@ const P = {
     }
   },
   gemini: {
-    key: () => process.env.GEMINI_API_KEY, models: () => models('GEMINI_MODEL', ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash']),
+    key: () => process.env.GEMINI_API_KEY, models: () => models('GEMINI_MODEL', ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-flash-latest']),
     call({ system, user, images, json, max }) {
       const parts = [{ text: user }, ...(images || []).map(u => { const m = /^data:(.+?);base64,(.+)$/.exec(u); return { inline_data: { mime_type: m[1], data: m[2] } }; })];
       return tryModels('gemini', P.gemini.models(), async model => {
