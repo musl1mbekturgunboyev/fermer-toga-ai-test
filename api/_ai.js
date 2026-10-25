@@ -1,5 +1,6 @@
 // AI qatlami: ChatGPT (OpenAI) va Gemini. Biri tokeni tugasa/xato bersa, avtomatik ikkinchisiga o‘tadi.
 // Model nomi eskirgan bo‘lsa (404), shu provayderning boshqa modelini sinaydi.
+const mask = x => String(x || '').replace(/sk-[\w*\-]+/g, 'sk-…').replace(/AIza[\w\-*]+/g, 'AIza…').replace(/\s+/g, ' ').slice(0, 120);
 const cool = {}, good = {}; // provayder -> o‘chiq vaqt; ishlagan model
 const T = ms => AbortSignal.timeout(ms);
 const fail = (r, j) => Object.assign(new Error((j && j.error && (j.error.message || j.error)) || 'AI xatosi (' + r.status + ')'), { status: r.status });
@@ -54,7 +55,7 @@ async function run(opts, parse) {
   const ready = order.filter(n => !(cool[n] > Date.now())), list = ready.length ? ready : order; let last; const tried = [];
   for (const n of list) {
     try { const text = await P[n].call(opts); return { provider: n, data: parse ? parse(text) : text }; }
-    catch (e) { last = e; tried.push(n + ' ' + (e.status || e.name)); e.tried = tried; cool[n] = Date.now() + ([401, 402, 403, 429].includes(e.status) ? 600000 : 30000); console.error('AI xato [' + n + ']', e.status || '', e.message); }
+    catch (e) { last = e; tried.push(n + ' ' + (e.status || e.name) + ': ' + mask(e.message)); e.tried = tried; cool[n] = Date.now() + ([401, 402, 403, 429].includes(e.status) ? 600000 : 30000); console.error('AI xato [' + n + ']', e.status || '', e.message); }
   }
   throw last;
 }
@@ -63,7 +64,7 @@ exports.chat = (system, user, max) => run({ system, user, max });
 exports.vision = (system, user, images, max, fast) => run({ system, user, images, json: true, max, fast }, parseJson);
 exports.status = () => Object.keys(P).map(n => ({ name: n, enabled: !!P[n].key(), cooldown: cool[n] > Date.now() }));
 exports.explain = e => {
-  const m = String((e && e.message) || ''), st = e && e.status, tag = e && e.tried && e.tried.length ? ' (' + e.tried.join(', ') + ')' : '';
+  const m = String((e && e.message) || ''), st = e && e.status, tag = e && e.tried && e.tried.length ? ' [' + e.tried.join(' | ') + ']' : '';
   const t = e && e.code === 'no_key' ? 'AI hali sozlanmagan. Administrator serverga AI kalitini (OPENAI_API_KEY yoki GEMINI_API_KEY) kiritishi kerak.'
     : /API key not valid|API_KEY_INVALID|Incorrect API key|invalid_api_key/i.test(m) ? 'AI kaliti noto‘g‘ri. Administrator kalitni qayta nusxalab, Render’ga qo‘shtirnoqsiz va bo‘sh joysiz kiritsin.'
     : /location is not supported|unsupported_country|not available in your (country|region)|territory/i.test(m) ? 'AI xizmati server joylashgan hududda mavjud emas. Administrator serverni boshqa hududga (masalan, AQSh) ko‘chirishi kerak.'
@@ -77,7 +78,7 @@ exports.explain = e => {
 };
 // Tashxis: har bir provayderni alohida sinaydi (kalitni ko‘rsatmaydi)
 exports.test = async () => {
-  const mask = s => String(s || '').replace(/sk-[\w*\-]+/g, 'sk-…').replace(/AIza[\w\-*]+/g, 'AIza…').slice(0, 260), out = [];
+  const out = [];
   for (const n of Object.keys(P)) {
     if (!P[n].key()) { out.push({ provider: n, key: false, ok: false, error: 'Kalit kiritilmagan' }); continue; }
     const t0 = Date.now();
