@@ -2,30 +2,47 @@ services:
   - type: web
     name: fermer-toga-ai
     runtime: node
-    plan: free            # doimiy ishlashi uchun "starter" ga o‘zgartiring
+    region: oregon        # AQSh (Oregon) — Gemini API hududiy cheklovlarisiz barqaror ishlaydi
+    plan: free            # Uxlab qolmasligi uchun "starter" ($7/oy) ga o‘zgartiring
     buildCommand: npm install --omit=dev
     startCommand: node server.js
-    healthCheckPath: /
+    healthCheckPath: /healthz
     envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash-lite
+      - key: GEMINI_FAST_MODEL
+        value: gemini-2.5-flash-lite
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4o-mini
-      - key: CRON_SECRET
-        generateValue: true
-      - key: PAY_INFO
-        sync: false
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: GEMINI_MODEL
-        value: gemini-2.5-flash
       - key: AI_PRIORITY
-        value: openai,gemini
+        value: gemini,openai
+      - key: AI_ATTEMPT_MS
+        value: "14000"
+      - key: AI_DEADLINE_MS
+        value: "45000"
       - key: LISTING_FEE_MODE
         value: "off"
+      - key: PAY_INFO
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true

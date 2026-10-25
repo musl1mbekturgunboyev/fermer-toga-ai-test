@@ -26,6 +26,11 @@ do $$ declare t text; begin
  end loop;
  alter table profiles enable row level security; create policy own_profile on profiles for all using(id=auth.uid() or is_admin());
  alter table audit_logs enable row level security; create policy admin_audit on audit_logs for select using(is_admin());
+ alter table farm_members enable row level security;
+ create policy own_farm_members on farm_members for all using(user_id=auth.uid() or exists(select 1 from farms f where f.id=farm_id and f.owner_id=auth.uid()) or is_admin()) with check(exists(select 1 from farms f where f.id=farm_id and f.owner_id=auth.uid()) or is_admin());
+ alter table feed_items enable row level security;
+ create policy read_feed_items on feed_items for select using(auth.uid() is not null);
+ create policy admin_feed_items on feed_items for all using(is_admin()) with check(is_admin());
 end $$;
 
 -- ===== Production qo‘shimchalari =====
@@ -50,11 +55,12 @@ create policy own_photos on storage.objects for all using(bucket_id='animal-phot
 -- AI sarfi (faqat server yozadi) va push obunalar
 create table ai_usage(id bigserial primary key,user_id uuid references auth.users on delete cascade,kind text,at timestamptz default now());
 alter table ai_usage enable row level security;
+create policy admin_ai_usage on ai_usage for select using(is_admin());
 create table push_subs(endpoint text primary key,user_id uuid references auth.users on delete cascade,sub jsonb);
 alter table push_subs enable row level security;
 create policy own_push on push_subs for all using(user_id=auth.uid()) with check(user_id=auth.uid());
 -- ===== Hayvon bozori =====
-create table listings(id uuid primary key default gen_random_uuid(),seller_id uuid references auth.users on delete cascade not null,title text not null,species text,breed text,age text,weight text,price bigint not null,region text,phone text not null,description text,photo_path text,status text default 'pending_payment' check(status in('pending_payment','active','sold','removed')),created_at timestamptz default now());
+create table listings(id uuid primary key default gen_random_uuid(),seller_id uuid references auth.users on delete cascade not null,title text not null,species text,breed text,age text,weight text,price bigint not null,region text,phone text not null,description text,photo_path text,status text default 'pending_payment' check(status in('pending_payment','pending_review','active','sold','removed')),created_at timestamptz default now());
 alter table listings enable row level security;
 create policy read_listings on listings for select using((status='active' and auth.uid() is not null) or seller_id=auth.uid() or is_admin());
 create policy mark_listing on listings for update using(seller_id=auth.uid()) with check(seller_id=auth.uid() and status in('sold','removed'));
@@ -62,9 +68,8 @@ create table listing_messages(id bigserial primary key,listing_id uuid reference
 alter table listing_messages enable row level security;
 create policy read_msgs on listing_messages for select using(from_id=auth.uid() or to_id=auth.uid());
 create policy send_msg on listing_messages for insert with check(from_id=auth.uid() and exists(select 1 from listings l where l.id=listing_id and (l.seller_id=to_id or l.seller_id=from_id)));
--- E’lon rasmlari ochiq (xaridorlar ko‘rishi uchun); yuklash faqat o‘z papkasiga
+-- E’lon rasmlari ochiq (xaridorlar ko‘rishi uchun); yuklash faqat server (service_role) orqali
 insert into storage.buckets(id,name,public) values('listing-photos','listing-photos',true) on conflict do nothing;
-create policy lp_up on storage.objects for insert with check(bucket_id='listing-photos' and (storage.foldername(name))[1]=auth.uid()::text);
 -- Pro berish (qo‘lda): insert into subscriptions(owner_id,plan,status,period_end) values('<user id>','Pro','active',now()+interval '30 days');
 
 -- ===== v1.3: bozor (rasm tekshiruvi, saqlanganlar) =====
@@ -77,3 +82,9 @@ create policy read_listings on listings for select using((status in('active','so
 create table if not exists listing_favorites(user_id uuid references auth.users on delete cascade, listing_id uuid references listings on delete cascade, created_at timestamptz default now(), primary key(user_id,listing_id));
 alter table listing_favorites enable row level security;
 create policy own_fav on listing_favorites for all using(user_id=auth.uid()) with check(user_id=auth.uid());
+
+-- ===== v1.4: AI band bo‘lganda qo‘lda moderatsiya (pending_review) va to‘liq RLS =====
+alter table listings drop constraint if exists listings_status_check;
+alter table listings add constraint listings_status_check check(status in('pending_payment','pending_review','active','sold','removed'));
+alter table farm_members enable row level security;
+alter table feed_items enable row level security;
