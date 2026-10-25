@@ -258,7 +258,7 @@ window.addEventListener('hashchange',()=>{if(location.hash=="#how"){document.get
 let SB=null;
 I18N.uz.mock="AI javoblari sun’iy intellekt (ChatGPT/Gemini) orqali yaratiladi va taxminiy. Veterinariya tashxisi emas.";
 const tok=async()=>{const {data}=await SB.auth.getSession();return data.session&&data.session.access_token};
-const api=async(p,b)=>{const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await tok()},body:JSON.stringify(b)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Xatolik');return j};
+const api=async(p,b)=>{const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await tok()},body:JSON.stringify(b)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||(r.status>=500?'Server javob bermadi yoki band. Bir daqiqadan keyin qayta urinib ko‘ring.':'Xatolik ('+r.status+')'));return j};
 const b64=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)});
 AIService.scan=async o=>{const bl=await Promise.all([...o.files].slice(0,3).map(comp));
   try{const {data}=await SB.auth.getSession();SB.storage.from('animal-photos').upload(data.session.user.id+'/'+Date.now()+'.jpg',bl[0],{contentType:'image/jpeg'})}catch(_){}
@@ -270,7 +270,7 @@ async function onSession(se){const id=se.user.id;fresh();S.user=String(se.user.u
   const p=await SB.from('profiles').select('role').eq('id',id).maybeSingle();S.admin=!!(p.data&&p.data.role==='admin');
   const st=await SB.from('app_state').select('json').eq('user_id',id).maybeSingle();
   if(st.data&&st.data.json){try{const j=JSON.parse(st.data.json);KEYS.forEach(k=>{if(j[k]!==undefined)S[k]=j[k]})}catch(_){}}
-  DB={set:({json})=>SB.from('app_state').upsert({user_id:id,json})};last=JSON.stringify(Object.fromEntries(KEYS.map(k=>[k,S[k]])));
+  DB={set:async({json})=>{const r=await SB.from('app_state').upsert({user_id:id,json});if(r.error)console.warn('Saqlash xatosi:',r.error.message)}};last=JSON.stringify(Object.fromEntries(KEYS.map(k=>[k,S[k]])));
   const isNew=!(st.data&&st.data.json);if(isNew)S.ob={s:0,a:{}};if(['','#/','#/login','#/register'].includes(location.hash))location.hash=isNew?'#/onboarding':'#/app';else render()}
 function authErr(m){const k=/after (\d+) seconds/.exec(m);if(k)return 'Xavfsizlik uchun '+k[1]+' soniyadan keyin qayta urinib ko‘ring. Ro‘yxatdan o‘tgan bo‘lsangiz, emailingizdagi xatni (Spam papkasini ham) tekshiring.';
  if(/Invalid login/i.test(m))return 'Email yoki parol noto‘g‘ri.';if(/already registered/i.test(m))return 'Bu email bilan hisob mavjud. “Kirish” bo‘limidan foydalaning.';

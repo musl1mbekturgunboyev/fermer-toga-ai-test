@@ -6,7 +6,7 @@ const DET = { sigir: 'cattle', buqa: 'cattle', buzoq: 'cattle', qoy: 'sheep', ec
 const SYS = 'You are a strict image moderator for a livestock marketplace in Uzbekistan. Reply with JSON only.';
 const PROMPT = 'Does this photo clearly show a REAL, LIVE farm animal as the main subject (cattle/cow/bull/calf, sheep/lamb, goat, horse/donkey, camel, or poultry like chicken/duck/goose/turkey)? REJECT (is_live_animal=false): meat, carcass, food, products, tools, vehicles, buildings, people only, cats/dogs/pets, wild animals, drawings, cartoons, toys, screenshots, AI-generated or watermarked stock images, collages. Return JSON: {"is_live_animal":true|false,"species":"sigir|buqa|buzoq|qoy|echki|ot|eshak|tovuq|goz_ordak|boshqa_parranda|tuya|boshqa|none","confidence":0-100,"reason":"short Uzbek reason"}';
 async function check(img, declared) {
-  const r = (await ai.vision(SYS, PROMPT, [img], 300)).data;
+  const r = (await ai.vision(SYS, PROMPT, [img], 300, true)).data;
   if (!r.is_live_animal || +r.confidence < 60) return 'Rasmda jonli hayvon aniq ko‘rinmayapti. Faqat sotiladigan hayvonning haqiqiy rasmini yuklang (boshqa buyum yoki mahsulot rasmi qabul qilinmaydi).';
   const g = GROUP[declared] || 'any', d = DET[r.species] || 'other';
   if (g !== 'any' && d !== g) return 'Tanlangan tur (' + declared + ') rasmga mos kelmadi. Turni tekshiring yoki to‘g‘ri rasm yuklang.';
