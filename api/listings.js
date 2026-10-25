@@ -26,7 +26,7 @@ module.exports = async (req, res) => {
   if (bufs.some(x => x[0] !== 0xFF || x[1] !== 0xD8)) return res.status(400).json({ error: 'Rasm formati noto‘g‘ri.' });
   const mine = await fetch(U + '/rest/v1/listings?select=id&status=in.(active,pending_payment)&seller_id=eq.' + u.id, { headers: { ...H, Prefer: 'count=exact', Range: '0-0' } });
   if (+((mine.headers.get('content-range') || '0/0').split('/')[1]) >= 50) return res.status(429).json({ error: 'E’lonlar soni chegaradan oshdi' });
-  let bad; try { bad = await Promise.all(imgs.map(x => check(x, species))); } catch (e) { console.error(e); return res.status(503).json({ error: 'Rasmni tekshirib bo‘lmadi. Birozdan keyin qayta urinib ko‘ring.' }); }
+  let bad; try { bad = await Promise.all(imgs.map(x => check(x, species))); } catch (e) { console.error(e); return res.status(503).json({ error: 'Rasmni tekshirib bo‘lmadi. ' + ai.explain(e) }); }
   const i = bad.findIndex(Boolean); if (i >= 0) return res.status(422).json({ error: (imgs.length > 1 ? (i + 1) + '-rasm: ' : '') + bad[i] });
   const paths = [];
   for (const buf of bufs) {

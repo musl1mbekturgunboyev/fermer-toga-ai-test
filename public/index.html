@@ -212,8 +212,8 @@ function bind(h){
     if([...f].some(x=>!/^image\/(jpeg|png)$/.test(x.type))){$('#er').textContent="Rasm yuklanmadi. JPG yoki PNG formatidan foydalaning.";return}
     $('#er').textContent="";$('#res').innerHTML='<br><div class="scan" style="max-width:420px"><div class="frame"></div><div class="line"></div><div class="tag">Tahlil qilinmoqda…</div></div>';
     try{const r=await AIService.scan({type:$('#st').value,age:$('#sa').value,files:f});$('#res').innerHTML=resultCard(r)}
-    catch(_){$('#res').innerHTML='<p class="disc">AI tahlilini amalga oshirishda muammo yuz berdi. Iltimos, rasmni qayta yuklang.</p>'}};
-  const cf=$('#cf');if(cf){const ask=async q=>{if(!q.trim())return;const c=$('#ch');c.insertAdjacentHTML('beforeend',`<div class="msg u">${esc(q)}</div>`);const a=await AIService.chat(q);c.insertAdjacentHTML('beforeend',`<div class="msg a">${esc(a)}</div>`)};
+    catch(x){$('#res').innerHTML='<p class="disc">'+esc((x&&x.message)||'AI tahlilini amalga oshirishda muammo yuz berdi. Iltimos, rasmni qayta yuklang.')+'</p>'}};
+  const cf=$('#cf');if(cf){const ask=async q=>{if(!q.trim())return;const c=$('#ch');c.insertAdjacentHTML('beforeend',`<div class="msg u">${esc(q)}</div>`);let a;try{a=await AIService.chat(q)}catch(x){a='⚠️ '+((x&&x.message)||'AI hozir ishlamayapti.')}c.insertAdjacentHTML('beforeend',`<div class="msg a">${esc(a)}</div>`)};
     cf.onsubmit=e=>{e.preventDefault();const i=$('#cq');ask(i.value);i.value=""};document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>ask(b.dataset.q))}
   if(h=="#how")document.getElementById('how')?.scrollIntoView();
 }
@@ -256,7 +256,7 @@ document.addEventListener('change',e=>{if(e.target.id=="lg"||e.target.id=="lgp")
 window.addEventListener('hashchange',()=>{if(location.hash=="#how"){document.getElementById('how')?.scrollIntoView({behavior:'smooth'});return}render()});
 /* ---------- PRODUCTION: Supabase + /api (OpenAI serverda) ---------- */
 let SB=null;
-I18N.uz.mock="AI javoblari ChatGPT orqali yaratiladi va taxminiy. Veterinariya tashxisi emas.";
+I18N.uz.mock="AI javoblari sun’iy intellekt (ChatGPT/Gemini) orqali yaratiladi va taxminiy. Veterinariya tashxisi emas.";
 const tok=async()=>{const {data}=await SB.auth.getSession();return data.session&&data.session.access_token};
 const api=async(p,b)=>{const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await tok()},body:JSON.stringify(b)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Xatolik');return j};
 const b64=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)});

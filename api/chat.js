@@ -7,5 +7,5 @@ module.exports = async (req, res) => {
   const m = String((req.body || {}).message || '').slice(0, 1500);
   if (!m) return res.status(400).json({ error: 'Savol bo‘sh' });
   try { const r = await ai.chat(SYS + 'Foydalanuvchi hayvonlari: ' + String((req.body || {}).context || '').slice(0, 1500), m, 700); res.json({ text: r.data, provider: r.provider }); }
-  catch (e) { console.error(e); res.status(503).json({ error: 'AI xizmati hozir band. Birozdan keyin qayta urinib ko‘ring.' }); }
+  catch (e) { console.error(e); res.status(503).json({ error: ai.explain(e) }); }
 };

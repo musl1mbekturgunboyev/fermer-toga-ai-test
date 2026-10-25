@@ -9,5 +9,5 @@ module.exports = async (req, res) => {
   if (!imgs.length) return res.status(400).json({ error: 'Rasm yuklanmadi. JPG yoki PNG formatidan foydalaning.' });
   const prompt = `Rasmdagi hayvonni ko‘rinadigan belgilar asosida tahlil qil (tur: ${String(b.type).slice(0, 20)}, yosh: ${String(b.age || 'noma’lum').slice(0, 30)}). Faqat JSON qaytar: {"species":"","breed":"","age":"taxminiy diapazon","weight":"taxminiy diapazon, kg","bcs":"tana holati 1-5","confidence":0-100,"obs":[],"feed":[],"next":[]}. Natijaning hammasi taxminiy.`;
   try { const r = await ai.vision(SYS, prompt, imgs, 900); res.json({ ...r.data, provider: r.provider }); }
-  catch (e) { console.error(e); res.status(503).json({ error: 'AI tahlilini amalga oshirishda muammo yuz berdi. Birozdan keyin qayta urinib ko‘ring.' }); }
+  catch (e) { console.error(e); res.status(503).json({ error: ai.explain(e) }); }
 };
