@@ -135,7 +135,7 @@ function animals(){const q=S.q.toLowerCase();const L=S.animals.filter(a=>(a.name
 return shell("#/animals",`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h1 style="font-size:1.8rem">Mening chorvalarim</h1><a class="btn" href="#/add">➕ Hayvon qo‘shish</a></div><div class="field"><label for="sq">Qidirish</label><input id="sq" type="search" value="${esc(S.q)}" placeholder="Nom, tur yoki zot"></div>
 <div class="grid g2" id="al">${L.length?L.map(a=>`<article class="card an">${a.img?`<img src="${esc(a.img)}" alt="${esc(a.name)}" style="width:84px;height:84px;border-radius:14px;object-fit:cover;flex:none">`:`<div class="ph" aria-hidden="true">${a.e||'🐄'}</div>`}<div style="min-width:0;flex:1"><h3>${esc(a.name)} <span class="muted" style="font-weight:400">${esc(a.id)}</span></h3><div class="muted">${esc(a.type)} · ${esc(a.breed)} · ${esc(a.sex)} · ${esc(a.age)}</div><p style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap"><span class="pill b">Vazn: ${esc(a.w)}</span> <span class="pill ${a.h=='Sog‘lom'?'':'w'}">${esc(a.h)}</span></p><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn alt" style="min-height:40px" data-pp="${a.id}">Pasport</button> <button class="btn alt" style="min-height:40px" data-del="${a.id}">Arxivlash</button></div></div></article>`).join(''):`<div class="card"><h3>Hayvon topilmadi</h3><p class="muted">Boshqa so‘z bilan qidiring yoki yangi hayvon qo‘shing.</p></div>`}</div>`)}
 function addAnimal(){return shell("#/animals",`<h1 style="font-size:1.8rem">Hayvon qo‘shish</h1><form class="card" id="nf" novalidate><div class="field"><label for="t">Hayvon turi *</label><select id="t"><option>Sigir</option><option>Buqa</option><option>Buzoq</option><option>Qo‘y</option><option>Qo‘zi</option><option>Echki</option><option>Ot</option><option>Boshqa</option></select></div><div class="field"><label for="nm">Ism yoki ID *</label><input id="nm"></div><div class="field"><label for="sx">Jinsi *</label><select id="sx"><option>Urg‘ochi</option><option>Erkak</option></select></div><div class="field"><label for="ag">Taxminiy yoshi *</label><input id="ag" placeholder="masalan, 2 yosh"></div><div class="field"><label for="wt">Vazn (ixtiyoriy, kg)</label><input id="wt" type="number" min="1"></div><div id="er" role="alert" style="color:var(--bad);margin-bottom:10px"></div><button class="btn">Saqlash</button></form>`)}
-function scanView(){return shell("#/scan",`<h1 style="font-size:1.8rem">AI Scan</h1><p class="disc">${t('mock')} <button type="button" id="aidiag" class="pill" style="border:0;cursor:pointer;min-height:36px">AI holatini tekshirish</button></p><pre id="aidiagout" style="white-space:pre-wrap;font-size:.85rem"></pre><br><form class="card" id="sf"><div class="field"><label for="im">Rasm (JPG yoki PNG)</label><input id="im" type="file" accept="image/jpeg,image/png" multiple></div><div class="field"><label for="st">Hayvon turi</label><select id="st"><option>Sigir</option><option>Buqa</option><option>Qo‘y</option><option>Echki</option><option>Ot</option></select></div><div class="field"><label for="sa">Taxminiy yoshi</label><input id="sa"></div><div id="er" role="alert" style="color:var(--bad);margin-bottom:10px"></div><button class="btn">Tahlil qilish</button></form><div id="res" aria-live="polite"></div>`)}
+function scanView(){return shell("#/scan",`<h1 style="font-size:1.8rem">AI Scan</h1><p class="disc">${t('mock')} <button type="button" id="aidiag" class="pill" style="border:0;cursor:pointer;min-height:36px">AI holatini tekshirish</button></p><pre id="aidiagout" style="white-space:pre-wrap;font-size:.85rem"></pre><br><form class="card" id="sf"><div class="field"><label for="im">Rasm (JPG yoki PNG) *</label><input id="im" type="file" accept="image/jpeg,image/png" multiple></div><div class="field"><label for="sa_id">Qaysi hayvonga muhrlansin?</label><select id="sa_id"><option value="">➕ Yangi hayvon sifatida qo‘shish</option>${ao()}</select></div><div class="field"><label for="st">Hayvon turi</label><select id="st"><option>Sigir</option><option>Buqa</option><option>Buzoq</option><option>Qo‘y</option><option>Echki</option><option>Ot</option></select></div><div class="field"><label for="sa">Taxminiy yoshi (ixtiyoriy)</label><input id="sa" placeholder="masalan: 2 yosh"></div><div id="er" role="alert" style="color:var(--bad);margin-bottom:10px"></div><button class="btn">Tahlil qilish va barcha bo‘limlarga muhrlash</button></form><div id="res" aria-live="polite">${S.lastScan?resultCard(S.lastScan):''}</div>`)}
 function resultCard(r){const cf=Math.min(100,Math.max(0,+r.confidence||85));return `<br><div class="card">${r.img?`<img src="${esc(r.img)}" alt="Hayvon rasmi" style="width:100%;max-height:260px;object-fit:cover;border-radius:14px;margin-bottom:12px">`:''}<span class="pill b">✅ Pasport, Vazn, Ozuqa, Sog‘liq va Emlash bo‘limlariga muhrlandi</span><h2 style="margin-top:10px">AI Skan Tahlili (${esc(r.aid||'Yangi')})</h2><p><b>Tur:</b> ${esc(r.species||'—')} · <b>Zot:</b> ${esc(r.breed||'—')} · <b>Jins:</b> ${esc(r.sex||'—')} · <b>Yosh:</b> ${esc(r.age||'—')}</p><p><b>Taxminiy vazn:</b> ${esc(r.weight||'—')} (${r.weight_kg||'—'} kg) <span class="pill b">AI tahlil</span></p><p><b>Tana holati (BCS):</b> ${esc(r.bcs||'—')} · <b>Sog‘liq:</b> <span class="pill">${esc(r.health_status||'Sog‘lom')}</span></p><p><b>Sog‘liq xulosasi:</b> ${esc(r.health_note||'—')}</p><p><b>Kunlik ozuqa normasi:</b> ${esc(r.daily_feed_kg||'—')} · <b>Emlash tavsiyasi:</b> ${esc(r.vacc_recommend||'—')}</p><p class="muted">Aniqlik darajasi: ${cf}%</p><div class="meter"><i style="width:${cf}%"></i></div><h3 style="margin-top:14px">Tana va holat kuzatuvlari</h3><ul>${(r.obs||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><h3>Tavsiya etilgan ozuqa</h3><ul>${(r.feed||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><h3>Keyingi qadamlar</h3><ul>${(r.next||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><a class="btn" href="#/assistant">💬 AI Yordamchi bilan semirtirish / ozuqa strategiyasini tuzish</a><a class="btn alt" href="#/passport">🪪 Raqamli pasportni ko‘rish</a></div><p class="disc" style="margin-top:12px">${t('disc')} Aniq tashxis uchun veterinar ko‘rigidan o‘ting.</p></div>`}
 function renderChatMsg(m){return `<div class="msg ${m.role=='u'?'u':'a'}">${(m.imgs&&m.imgs.length)?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${m.imgs.map(u=>`<img src="${esc(u)}" alt="Chat rasmi" style="width:110px;height:84px;object-fit:cover;border-radius:10px">`).join('')}</div>`:''}<div style="white-space:pre-wrap">${esc(m.text||'')}</div>${(m.sched&&m.sched.length)?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bd)"><b>⏰ Kunlik yem va parvarish vaqtlari (10 daqiqa oldin bildirishnoma boradi):</b><ul style="margin:6px 0">${m.sched.map(s=>`<li><b>${esc(s.time)}</b> — ${esc(s.title)}</li>`).join('')}</ul><button type="button" class="btn" style="min-height:38px;font-size:.88rem" data-apply-sched='${esc(JSON.stringify(m.sched))}'>✅ Eslatmalarga saqlash va 10 min oldin xabar yuborish</button></div>`:''}</div>`}
 function assistant(){const msgs=(S.chatLog&&S.chatLog.length)?S.chatLog:[{role:'a',text:'Assalomu alaykum! Chorvachilik bo‘yicha savolingizni yozing yoki hayvon / ozuqa rasmini 📷 tugmasi orqali yuboring.'}];
@@ -213,12 +213,15 @@ function bind(h){
   const sf=$('#sf');if(sf)sf.onsubmit=async e=>{e.preventDefault();const f=$('#im').files;
     if(!f.length){$('#er').textContent="Rasm yuklanmadi. JPG yoki PNG formatidan foydalaning.";return}
     if([...f].some(x=>!/^image\/(jpeg|png)$/.test(x.type))){$('#er').textContent="Rasm yuklanmadi. JPG yoki PNG formatidan foydalaning.";return}
+    const targetAid=($('#sa_id')&&$('#sa_id').value)||'';
     $('#er').textContent="";$('#res').innerHTML='<br><div class="scan" style="max-width:420px"><div class="frame"></div><div class="line"></div><div class="tag">Tahlil qilinmoqda…</div></div>';
     try{const r=await AIService.scan({type:$('#st').value,age:$('#sa').value,files:f});
+      r.targetAid=targetAid;
       stampScanToModules(r);
+      S.lastScan=r;
+      await persistNow();
       $('#res').innerHTML=resultCard(r);
-      persist();
-      toast("Ma’lumotlar Pasport, Vazn, Ozuqa, Sog‘liq va Emlashga muhrlandi!")}
+      toast("✅ Ma’lumotlar Pasport, Vazn, Ozuqa, Sog‘liq, Emlash va AI Chatga muhrlandi!")}
     catch(x){$('#res').innerHTML='<p class="disc">'+esc((x&&x.message)||'AI tahlilini amalga oshirishda muammo yuz berdi. Iltimos, rasmni qayta yuklang.')+'</p>'}};
   const cf=$('#cf');if(cf){
     const cim=$('#cim'),cprev=$('#cprev'),cbtn=$('#cimgbtn');
@@ -249,7 +252,7 @@ AIService.scan=async o=>{if(!SM||!IMG)return oldScan(o);const imgs=await Promise
  const j=await SM.json(SYS+`Rasmdagi hayvonni tahlil qil (tur: ${o.type}, yosh: ${o.age||"noma’lum"}). Faqat JSON qaytar: {"species":"","breed":"","age":"","weight":"taxminiy diapazon, kg","bcs":"","confidence":0-100,"obs":[],"feed":[],"next":[]}`,{images:imgs,modelTier:"quick",cache:false});
  return {species:j.species||o.type,breed:j.breed||"—",age:j.age||"—",weight:j.weight||"—",bcs:j.bcs||"—",confidence:+j.confidence||50,obs:j.obs||[],feed:j.feed||[],next:j.next||[],mock:false}};
 AIService.chat=async q=>{if(!SM)return oldChat(q);const r=await SM(SYS+"Foydalanuvchi hayvonlari: "+S.animals.slice(0,12).map(a=>`${a.name}: ${a.type}, ${a.age}, vazn ${a.w}`).join("; ")+"\nSavol: "+q,{cache:false});return r.text};
-function persist(){if(!DB)return;clearTimeout(tm);tm=setTimeout(()=>{const j=JSON.stringify({animals:S.animals,weight:S.weight,health:S.health,vacc:S.vacc,farm:S.farm,plan:S.plan,rem:S.rem,user:S.user,lang:S.lang,fp:S.fp,chatLog:(S.chatLog||[]).slice(-20)});if(j!==last){last=j;DB.set({json:j}).catch(()=>{})}},900)}
+function persist(){const j=JSON.stringify({animals:S.animals,weight:S.weight,health:S.health,vacc:S.vacc,farm:S.farm,plan:S.plan,rem:S.rem,user:S.user,lang:S.lang,fp:S.fp,chatLog:(S.chatLog||[]).slice(-20)});try{localStorage.setItem('ft_state_backup',j)}catch(_){}if(!DB)return;clearTimeout(tm);tm=setTimeout(()=>{if(j!==last){last=j;DB.set({json:j}).catch(()=>{})}},400)}
 async function initCaps(){if(!window.claude)return;
  try{const u=await claude.use("user"),db=await claude.use("db");if(u&&db){DB=db.doc("data/users/"+await u.id()+"/state");const s=await DB.get();if(s.exists){const j=s.data().json;last=j;Object.assign(S,JSON.parse(j));render()}}}catch(_){}
  try{SM=await claude.use("sample");if(SM){IMG=!!(await SM.limits()).images;I18N.uz.mock="AI javoblari Claude orqali yaratiladi va taxminiy. Veterinariya tashxisi emas."}}catch(_){}
@@ -282,18 +285,30 @@ const tok=async()=>{const {data}=await SB.auth.getSession();return data.session&
 const api=async(p,b)=>{const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await tok()},body:JSON.stringify(b)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||(r.status>=500?'Server javob bermadi yoki band. Bir daqiqadan keyin qayta urinib ko‘ring.':'Xatolik ('+r.status+')'));return j};
 const b64=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)});
 const thumbB64=f=>createImageBitmap(f).then(b=>{const k=Math.min(1,280/Math.max(b.width,b.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(b.width*k));c.height=Math.max(1,Math.round(b.height*k));c.getContext('2d').drawImage(b,0,0,c.width,c.height);return new Promise(r=>c.toBlob(r,'image/jpeg',.7))}).then(b64).catch(()=>'');
+async function persistNow(){
+  const payload={animals:S.animals,weight:S.weight,health:S.health,vacc:S.vacc,farm:S.farm,plan:S.plan,rem:S.rem,user:S.user,lang:S.lang,fp:S.fp,chatLog:(S.chatLog||[]).slice(-20)};
+  const j=JSON.stringify(payload);
+  last=j;
+  try{localStorage.setItem('ft_state_backup',j)}catch(_){}
+  if(DB){try{await DB.set({json:j})}catch(_){}}
+}
 function stampScanToModules(r){
   const today=new Date(Date.now()+5*36e5).toISOString().slice(0,10);
   const nextVacc=new Date(Date.now()+180*864e5).toISOString().slice(0,10);
   const sp=r.species||'Sigir';
-  const aid=r.aid||('UZ-'+String((S.animals||[]).length+1).padStart(3,'0'));
+  const existing=r.targetAid&&S.animals.find(a=>a.id===r.targetAid);
+  const aid=existing?existing.id:(r.aid||('UZ-'+String((S.animals||[]).length+1).padStart(3,'0')));
   r.aid=aid;
-  const aname=sp+'-'+aid.split('-')[1];
+  const aname=existing?existing.name:(sp+'-'+aid.split('-').pop());
   const wkg=+r.weight_kg||parseInt(String(r.weight||'300').replace(/\D+/g,''))||300;
   const wstr=r.weight||(wkg+' kg');
   const em=EM[sp]||'🐄';
   // 1) Chorvalar & Pasport
-  S.animals.unshift({id:aid,name:aname,type:sp,breed:r.breed||'Mahalliy',sex:r.sex||'Urg‘ochi',age:r.age||'2 yosh',w:wstr,bcs:r.bcs||'3.5 / 5',h:r.health_status||'Sog‘lom',e:em,img:r.img||''});
+  if(existing){
+    Object.assign(existing,{type:sp,breed:r.breed||existing.breed,sex:r.sex||existing.sex,age:r.age||existing.age,w:wstr,bcs:r.bcs||'3.5 / 5',h:r.health_status||'Sog‘lom',e:em,img:r.img||existing.img||''});
+  }else{
+    S.animals.unshift({id:aid,name:aname,type:sp,breed:r.breed||'Mahalliy',sex:r.sex||'Urg‘ochi',age:r.age||'2 yosh',w:wstr,bcs:r.bcs||'3.5 / 5',h:r.health_status||'Sog‘lom',e:em,img:r.img||''});
+  }
   S.cur=aid;
   // 2) Vazn kuzatuvi
   S.weight.unshift({a:aid,d:today,kg:wkg,wstr,m:'AI Skan',img:r.img||''});
