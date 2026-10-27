@@ -53,8 +53,8 @@ footer{padding:30px 0 90px;color:var(--mut);font-size:.9rem}
 @media(max-width:800px){.side{display:none}.bn{display:flex;position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--bd);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));z-index:6}
 .bn a{flex:1;flex-direction:column;gap:2px;font-size:.72rem;padding:8px 2px;min-height:56px;justify-content:center;color:var(--mut)}.bn a.on{color:var(--g)}}
 .stat b{display:block;font-size:1.7rem;letter-spacing:-.02em}
-.field{display:grid;gap:6px;margin-bottom:14px}.field label{font-weight:700;font-size:.92rem}
-.field input,.field select,.field textarea{min-height:48px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--bd);background:var(--card)}
+.field{display:grid;gap:6px;margin-bottom:14px;min-width:0;max-width:100%}.field label{font-weight:700;font-size:.92rem}
+.field input,.field select,.field textarea{min-height:48px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--bd);background:var(--card);width:100%;max-width:100%;min-width:0}
 .an{display:flex;gap:14px}.ph{width:84px;height:84px;border-radius:14px;background:var(--gl);display:grid;place-items:center;font-size:2.2rem;flex:none}
 .bars{display:flex;align-items:flex-end;gap:8px;height:130px}.bars i{flex:1;background:linear-gradient(var(--g),#5fbf88);border-radius:8px 8px 0 0;transform-origin:bottom;animation:gr .8s ease both}
 @keyframes gr{from{transform:scaleY(0)}}
@@ -64,7 +64,7 @@ footer{padding:30px 0 90px;color:var(--mut);font-size:.9rem}
 .hero{position:relative;overflow:hidden}.rv{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.2,1);transition-delay:var(--d,0ms)}.rv.in{opacity:1;transform:none}
 .blob{position:absolute;border-radius:50%;filter:blur(44px);opacity:.3;animation:fl 9s ease-in-out infinite alternate;pointer-events:none}@keyframes fl{to{transform:translate(30px,-24px) scale(1.15)}}
 .card{transition:transform .2s,box-shadow .2s}.card:hover{transform:translateY(-3px)}
-body{overflow-x:hidden}img{max-width:100%}input[type=file]{max-width:100%;min-height:auto;padding:10px}
+html,body{overflow-x:hidden;max-width:100vw}h1,h2,h3,p,span,div{overflow-wrap:anywhere;word-break:break-word}img{max-width:100%}input[type=file]{width:100%;max-width:100%;min-width:0;min-height:auto;padding:8px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.card{max-width:100%;min-width:0;overflow:hidden}
 @media(max-width:560px){.top .wrap{height:auto;min-height:60px;padding:8px 12px;flex-wrap:wrap}.top nav{gap:6px!important;flex-wrap:wrap;justify-content:flex-end}.top .btn{min-height:40px;padding:0 12px;font-size:.88rem;white-space:nowrap}.top select{min-height:40px!important;max-width:100px;font-size:.85rem}.brand span{display:none}.wrap{padding:0 14px}.main{padding:16px 14px 100px}h1{font-size:clamp(1.8rem,8vw,2.4rem)}.btn{padding:0 16px}.hero{padding:28px 0 20px}}
 @media(min-width:801px) and (max-width:1100px){.side{width:84px}.side a{font-size:0;gap:0;justify-content:center}.side a span{font-size:1.4rem}.side a.brand span{display:none}}
 @media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none}*{animation:none!important;transition:none!important}}
@@ -123,22 +123,24 @@ ${reg?`<div class="field"><label for="n">To‘liq ism</label><input id="n" requi
 <div class="field"><label for="e">Email</label><input id="e" type="email" required autocomplete="email"></div><div class="field"><label for="pw">Parol</label><input id="pw" type="password" minlength="8" required></div>
 ${reg?`<div class="field"><label for="r">Viloyat</label><select id="r">${["Toshkent","Samarqand","Farg‘ona","Andijon","Namangan","Buxoro","Xorazm","Qashqadaryo","Surxondaryo","Jizzax","Sirdaryo","Navoiy","Qoraqalpog‘iston"].map(x=>`<option>${x}</option>`).join('')}</select></div>`:''}
 <div id="er" role="alert" style="color:var(--bad);margin-bottom:10px"></div><button class="btn" style="width:100%">${reg?'Hisob yaratish':'Kirish'}</button><p style="display:flex;gap:8px;margin-top:10px"><button type="button" class="btn alt" id="gg" style="flex:1">Google</button><button type="button" class="btn alt" id="rs" style="flex:1">Parolni unutdim</button></p></form></main>`}
-function nav(a){const l=[["#/app","🏠","Bosh sahifa"],["#/animals","🐄","Chorvalar"],["#/scan","📷","AI Scan"],["#/assistant","💬","AI yordamchi"],["#/reminders","🔔","Eslatmalar"]];
-return `<aside class="side" aria-label="Asosiy menyu"><a class="brand" href="#/app" style="padding:6px 8px 16px">${logo(34)}<span>Fermer Tog‘a AI</span></a>${l.map(x=>`<a href="${x[0]}" class="${a==x[0]?'on':''}"><span aria-hidden="true">${x[1]}</span>${x[2]}</a>`).join('')}${X.concat(S.admin?[["#/admin","🛡️","Admin"]]:[]).map(x=>`<a href="${x[0]}" class="${a==x[0]?'on':''}"><span aria-hidden="true">${x[1]}</span>${x[2]}</a>`).join('')}<a href="#/" id="lo" style="margin-top:auto">↩ Chiqish</a></aside><nav class="bn" aria-label="Pastki menyu">${l.map(x=>`<a href="${x[0]}" class="${a==x[0]?'on':''}"><span style="font-size:1.4rem" aria-hidden="true">${x[1]}</span>${x[2].split(' ')[0]}</a>`).join('')}</nav>`}
+function nav(a){const l=[["#/app","🏠","Bosh sahifa","Bosh"],["#/animals","🐄","Chorvalar","Chorvalar"],["#/scan","📷","AI Scan","Skaner"],["#/assistant","💬","AI yordamchi","Yordamchi"],["#/reminders","🔔","Eslatmalar","Eslatma"]];
+return `<aside class="side" aria-label="Asosiy menyu"><a class="brand" href="#/app" style="padding:6px 8px 16px">${logo(34)}<span>Fermer Tog‘a AI</span></a>${l.map(x=>`<a href="${x[0]}" class="${a==x[0]?'on':''}"><span aria-hidden="true">${x[1]}</span>${x[2]}</a>`).join('')}${X.concat(S.admin?[["#/admin","🛡️","Admin"]]:[]).map(x=>`<a href="${x[0]}" class="${a==x[0]?'on':''}"><span aria-hidden="true">${x[1]}</span>${x[2]}</a>`).join('')}<a href="#/" id="lo" style="margin-top:auto">↩ Chiqish</a></aside><nav class="bn" aria-label="Pastki menyu">${l.map(x=>`<a href="${x[0]}" class="${a==x[0]?'on':''}"><span style="font-size:1.35rem" aria-hidden="true">${x[1]}</span>${x[3]}</a>`).join('')}</nav>`}
 const shell=(a,body)=>`<div class="app">${nav(a)}<main class="main">${body}</main></div>`;
 function dashboard(){const A=S.animals;return shell("#/app",`<h1 style="font-size:1.8rem">Assalomu alaykum, ${esc(S.user||'Fermer')}!</h1><p class="muted">Bugun fermangizda nima bor</p>
 <div class="grid g4"><div class="card stat"><b>${A.length}</b>Jami hayvonlar</div><div class="card stat"><b>${A.filter(a=>a.type=='Sigir').length}</b>Sigirlar</div><div class="card stat"><b>${A.filter(a=>a.type=='Buqa').length}</b>Buqalar</div><div class="card stat"><b>${A.filter(a=>a.type=='Qo‘y').length}</b>Qo‘ylar</div><div class="card stat"><b>${S.rem.length}</b>Bugungi eslatmalar</div></div><br>
 <div class="grid g2"><a class="card" href="#/scan" style="text-decoration:none"><h3>📷 AI Scan</h3><span class="muted">Rasm orqali taxminiy tahlil</span></a><a class="card" href="#/add" style="text-decoration:none"><h3>➕ Hayvon qo‘shish</h3><span class="muted">Yangi raqamli pasport</span></a><a class="card" href="#/market" style="text-decoration:none"><h3>🛒 Hayvon bozori</h3><span class="muted">Sotish va sotib olish</span></a><a class="card" href="#/assistant" style="text-decoration:none"><h3>💬 AI yordamchi</h3><span class="muted">O‘zbek tilida savol bering</span></a></div><br>
 <div class="card"><h3>O‘rtacha vazn dinamikasi <span class="pill w">namuna ma’lumot</span></h3><div class="bars" role="img" aria-label="Oylik vazn o‘sishi grafigi">${[40,48,55,62,70,78].map((h,i)=>`<i style="height:${h}%;animation-delay:${i*80}ms"></i>`).join('')}</div></div><br>
-<div class="card"><h3>Barcha bo‘limlar</h3><p style="display:flex;flex-wrap:wrap;gap:8px">${X.concat(S.admin?[["#/admin","🛡️","Admin"]]:[]).map(x=>`<a class="pill" style="padding:10px 14px;text-decoration:none" href="${x[0]}">${x[1]} ${x[2]}</a>`).join('')}</p></div><br><div class="card"><h3>Yaqin eslatmalar</h3>${S.rem.map(r=>`<p style="display:flex;justify-content:space-between;margin:8px 0"><span>${r[0]}</span><span class="pill b">${r[1]}</span></p>`).join('')}</div>`)}
+<div class="card"><h3>Barcha bo‘limlar</h3><p style="display:flex;flex-wrap:wrap;gap:8px">${X.concat(S.admin?[["#/admin","🛡️","Admin"]]:[]).map(x=>`<a class="pill" style="padding:10px 14px;text-decoration:none" href="${x[0]}">${x[1]} ${x[2]}</a>`).join('')}</p></div><br><div class="card"><h3>Yaqin eslatmalar</h3>${S.rem.length?S.rem.map(r=>`<p style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0"><span>${esc(r[0])}</span><span class="pill b">${esc(r[1])}${r[2]?' · ⏰ '+esc(r[2]):''}</span></p>`).join(''):'<p class="muted">Hozircha eslatmalar yo‘q</p>'}</div>`)}
 function animals(){const q=S.q.toLowerCase();const L=S.animals.filter(a=>(a.name+a.type+a.breed).toLowerCase().includes(q));
 return shell("#/animals",`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h1 style="font-size:1.8rem">Mening chorvalarim</h1><a class="btn" href="#/add">➕ Hayvon qo‘shish</a></div><div class="field"><label for="sq">Qidirish</label><input id="sq" type="search" value="${esc(S.q)}" placeholder="Nom, tur yoki zot"></div>
-<div class="grid g2" id="al">${L.length?L.map(a=>`<article class="card an"><div class="ph" aria-hidden="true">${a.e}</div><div><h3>${esc(a.name)} <span class="muted" style="font-weight:400">${a.id}</span></h3><div class="muted">${esc(a.type)} · ${esc(a.breed)} · ${a.sex} · ${a.age}</div><p style="margin:6px 0"><span class="pill b">Vazn: ${esc(a.w)}</span> <span class="pill ${a.h=='Sog‘lom'?'':'w'}">${a.h}</span></p><button class="btn alt" style="min-height:40px" data-pp="${a.id}">Pasport</button> <button class="btn alt" style="min-height:40px" data-del="${a.id}">Arxivlash</button></div></article>`).join(''):`<div class="card"><h3>Hayvon topilmadi</h3><p class="muted">Boshqa so‘z bilan qidiring yoki yangi hayvon qo‘shing.</p></div>`}</div>`)}
+<div class="grid g2" id="al">${L.length?L.map(a=>`<article class="card an">${a.img?`<img src="${esc(a.img)}" alt="${esc(a.name)}" style="width:84px;height:84px;border-radius:14px;object-fit:cover;flex:none">`:`<div class="ph" aria-hidden="true">${a.e||'🐄'}</div>`}<div style="min-width:0;flex:1"><h3>${esc(a.name)} <span class="muted" style="font-weight:400">${esc(a.id)}</span></h3><div class="muted">${esc(a.type)} · ${esc(a.breed)} · ${esc(a.sex)} · ${esc(a.age)}</div><p style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap"><span class="pill b">Vazn: ${esc(a.w)}</span> <span class="pill ${a.h=='Sog‘lom'?'':'w'}">${esc(a.h)}</span></p><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn alt" style="min-height:40px" data-pp="${a.id}">Pasport</button> <button class="btn alt" style="min-height:40px" data-del="${a.id}">Arxivlash</button></div></div></article>`).join(''):`<div class="card"><h3>Hayvon topilmadi</h3><p class="muted">Boshqa so‘z bilan qidiring yoki yangi hayvon qo‘shing.</p></div>`}</div>`)}
 function addAnimal(){return shell("#/animals",`<h1 style="font-size:1.8rem">Hayvon qo‘shish</h1><form class="card" id="nf" novalidate><div class="field"><label for="t">Hayvon turi *</label><select id="t"><option>Sigir</option><option>Buqa</option><option>Buzoq</option><option>Qo‘y</option><option>Qo‘zi</option><option>Echki</option><option>Ot</option><option>Boshqa</option></select></div><div class="field"><label for="nm">Ism yoki ID *</label><input id="nm"></div><div class="field"><label for="sx">Jinsi *</label><select id="sx"><option>Urg‘ochi</option><option>Erkak</option></select></div><div class="field"><label for="ag">Taxminiy yoshi *</label><input id="ag" placeholder="masalan, 2 yosh"></div><div class="field"><label for="wt">Vazn (ixtiyoriy, kg)</label><input id="wt" type="number" min="1"></div><div id="er" role="alert" style="color:var(--bad);margin-bottom:10px"></div><button class="btn">Saqlash</button></form>`)}
 function scanView(){return shell("#/scan",`<h1 style="font-size:1.8rem">AI Scan</h1><p class="disc">${t('mock')} <button type="button" id="aidiag" class="pill" style="border:0;cursor:pointer;min-height:36px">AI holatini tekshirish</button></p><pre id="aidiagout" style="white-space:pre-wrap;font-size:.85rem"></pre><br><form class="card" id="sf"><div class="field"><label for="im">Rasm (JPG yoki PNG)</label><input id="im" type="file" accept="image/jpeg,image/png" multiple></div><div class="field"><label for="st">Hayvon turi</label><select id="st"><option>Sigir</option><option>Buqa</option><option>Qo‘y</option><option>Echki</option><option>Ot</option></select></div><div class="field"><label for="sa">Taxminiy yoshi</label><input id="sa"></div><div id="er" role="alert" style="color:var(--bad);margin-bottom:10px"></div><button class="btn">Tahlil qilish</button></form><div id="res" aria-live="polite"></div>`)}
-function resultCard(r){const cf=Math.min(100,Math.max(0,+r.confidence||60));return `<br><div class="card">${r.mock===false?'<span class="pill b">AI taxmin</span>':'<span class="pill w">DEMO — haqiqiy AI emas</span>'}<h2 style="margin-top:10px">Natija</h2><p><b>Tur:</b> ${esc(r.species||'—')} · <b>Zot:</b> ${esc(r.breed||'—')} · <b>Yosh:</b> ${esc(r.age||'—')}</p><p><b>Taxminiy vazn:</b> ${esc(r.weight||'—')} <span class="pill b">AI taxmin</span></p><p><b>Tana holati:</b> ${esc(r.bcs||'—')}</p><p class="muted">Ishonch darajasi: ${cf}% — rasm sifati va burchagi natijaga ta’sir qiladi.</p><div class="meter"><i style="width:${cf}%"></i></div><h3 style="margin-top:14px">Kuzatuvlar</h3><ul>${(r.obs||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><h3>Ozuqa bo‘yicha</h3><ul>${(r.feed||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><h3>Keyingi qadamlar</h3><ul>${(r.next||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p class="disc">${t('disc')} Aniq tashxis uchun veterinar ko‘rigidan o‘ting.</p></div>`}
-function assistant(){return shell("#/assistant",`<h1 style="font-size:1.8rem">Fermer Tog‘a AI Assistant</h1><p class="disc">${t('mock')} <button type="button" id="aidiag" class="pill" style="border:0;cursor:pointer;min-height:36px">AI holatini tekshirish</button></p><pre id="aidiagout" style="white-space:pre-wrap;font-size:.85rem"></pre><br><div class="chat" id="ch" aria-live="polite"><div class="msg a">Assalomu alaykum! Chorvachilik bo‘yicha savolingizni yozing.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">${["Sigirning vaznini qanday kuzatsam bo‘ladi?","Qo‘yim ozib ketganga o‘xshaydi, nimalarga e’tibor berishim kerak?","Emlash sanalarini qanday nazorat qilaman?"].map(x=>`<button class="pill" style="border:0;cursor:pointer;min-height:36px" data-q="${x}">${x}</button>`).join('')}</div><form id="cf" style="display:flex;gap:8px"><input id="cq" aria-label="Savolingiz" style="flex:1;min-height:48px;padding:0 14px;border-radius:12px;border:1.5px solid var(--bd);background:var(--card)" placeholder="Savolingizni yozing"><button class="btn" type="button" id="mic" aria-label="Ovozli kiritish">🎤</button><button class="btn">Yuborish</button></form>`)}
-function reminders(){return shell("#/reminders",`<h1 style="font-size:1.8rem">Eslatmalar</h1><p><button class="btn alt" id="push">🔔 Bildirishnomani yoqish</button></p><form class="card" data-mod="rem" novalidate><div class="field"><label for="rt">Eslatma</label><input id="rt"></div><div class="field"><label for="rd">Sana</label><input id="rd" type="date"></div><div id="er" role="alert" style="color:var(--bad)"></div><button class="btn">Qo‘shish</button></form><br>${S.rem.map(r=>`<div class="card" style="margin-bottom:10px;display:flex;justify-content:space-between"><span>${r[0]}</span><span class="pill b">${r[1]}</span></div>`).join('')}`)}
+function resultCard(r){const cf=Math.min(100,Math.max(0,+r.confidence||85));return `<br><div class="card">${r.img?`<img src="${esc(r.img)}" alt="Hayvon rasmi" style="width:100%;max-height:260px;object-fit:cover;border-radius:14px;margin-bottom:12px">`:''}<span class="pill b">✅ Pasport, Vazn, Ozuqa, Sog‘liq va Emlash bo‘limlariga muhrlandi</span><h2 style="margin-top:10px">AI Skan Tahlili (${esc(r.aid||'Yangi')})</h2><p><b>Tur:</b> ${esc(r.species||'—')} · <b>Zot:</b> ${esc(r.breed||'—')} · <b>Jins:</b> ${esc(r.sex||'—')} · <b>Yosh:</b> ${esc(r.age||'—')}</p><p><b>Taxminiy vazn:</b> ${esc(r.weight||'—')} (${r.weight_kg||'—'} kg) <span class="pill b">AI tahlil</span></p><p><b>Tana holati (BCS):</b> ${esc(r.bcs||'—')} · <b>Sog‘liq:</b> <span class="pill">${esc(r.health_status||'Sog‘lom')}</span></p><p><b>Sog‘liq xulosasi:</b> ${esc(r.health_note||'—')}</p><p><b>Kunlik ozuqa normasi:</b> ${esc(r.daily_feed_kg||'—')} · <b>Emlash tavsiyasi:</b> ${esc(r.vacc_recommend||'—')}</p><p class="muted">Aniqlik darajasi: ${cf}%</p><div class="meter"><i style="width:${cf}%"></i></div><h3 style="margin-top:14px">Tana va holat kuzatuvlari</h3><ul>${(r.obs||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><h3>Tavsiya etilgan ozuqa</h3><ul>${(r.feed||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><h3>Keyingi qadamlar</h3><ul>${(r.next||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><a class="btn" href="#/assistant">💬 AI Yordamchi bilan semirtirish / ozuqa strategiyasini tuzish</a><a class="btn alt" href="#/passport">🪪 Raqamli pasportni ko‘rish</a></div><p class="disc" style="margin-top:12px">${t('disc')} Aniq tashxis uchun veterinar ko‘rigidan o‘ting.</p></div>`}
+function renderChatMsg(m){return `<div class="msg ${m.role=='u'?'u':'a'}">${(m.imgs&&m.imgs.length)?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${m.imgs.map(u=>`<img src="${esc(u)}" alt="Chat rasmi" style="width:110px;height:84px;object-fit:cover;border-radius:10px">`).join('')}</div>`:''}<div style="white-space:pre-wrap">${esc(m.text||'')}</div>${(m.sched&&m.sched.length)?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bd)"><b>⏰ Kunlik yem va parvarish vaqtlari (10 daqiqa oldin bildirishnoma boradi):</b><ul style="margin:6px 0">${m.sched.map(s=>`<li><b>${esc(s.time)}</b> — ${esc(s.title)}</li>`).join('')}</ul><button type="button" class="btn" style="min-height:38px;font-size:.88rem" data-apply-sched='${esc(JSON.stringify(m.sched))}'>✅ Eslatmalarga saqlash va 10 min oldin xabar yuborish</button></div>`:''}</div>`}
+function assistant(){const msgs=(S.chatLog&&S.chatLog.length)?S.chatLog:[{role:'a',text:'Assalomu alaykum! Chorvachilik bo‘yicha savolingizni yozing yoki hayvon / ozuqa rasmini 📷 tugmasi orqali yuboring.'}];
+return shell("#/assistant",`<h1 style="font-size:1.8rem">Fermer Tog‘a AI Assistant</h1><p class="disc">${t('mock')} <button type="button" id="aidiag" class="pill" style="border:0;cursor:pointer;min-height:36px">AI holatini tekshirish</button></p><pre id="aidiagout" style="white-space:pre-wrap;font-size:.85rem"></pre><br><div class="chat" id="ch" aria-live="polite">${msgs.map(renderChatMsg).join('')}</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">${["Bu jonivorni tezroq semirtirish (bo‘rdoqi) uchun nima beray?","Uyda beda, somon, kepak va arpa bor — necha mahal beray?","Sutni ko‘paytirish uchun qanday qo‘shimcha yemlar kerak?","Shu jadval bo‘yicha kunlik eslatma vaqtlarini belgilab ber"].map(x=>`<button class="pill" style="border:0;cursor:pointer;min-height:36px;text-align:left" data-q="${x}">${x}</button>`).join('')}</div><div id="cprev" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div><form id="cf" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="cim" type="file" accept="image/jpeg,image/png" multiple style="display:none"><button class="btn alt" type="button" id="cimgbtn" aria-label="Rasm qo‘shish" title="Rasm yuklash" style="padding:0 14px">📷</button><input id="cq" aria-label="Savolingiz" style="flex:1;min-width:160px;min-height:48px;padding:0 14px;border-radius:12px;border:1.5px solid var(--bd);background:var(--card)" placeholder="Savolingizni yozing yoki rasm yuklang…"><button class="btn alt" type="button" id="mic" aria-label="Ovozli kiritish" style="padding:0 14px">🎤</button><button class="btn">Yuborish</button></form>`)}
+function reminders(){return shell("#/reminders",`<h1 style="font-size:1.8rem">Eslatmalar va Yem Vaqtlari</h1><p class="disc">Yem berish yoki parvarish vaqtiga <b>10 daqiqa qolganda</b> telefoningiz va brauzeringizga avtomatik bildirishnoma yuboriladi.</p><p style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn alt" type="button" id="push">🔔 Bildirishnomani yoqish</button><button class="btn alt" type="button" id="pushtest">📲 Test xabar yuborish (10 min oldin namunasi)</button></p><form class="card" data-mod="rem" novalidate><div class="field"><label for="rt">Eslatma (masalan: Ertalabki yem — Oqbosh) *</label><input id="rt" placeholder="Yem berish, suv berish yoki emlash"></div><div class="grid g2"><div class="field"><label for="rd">Sana (yoki har kuni) *</label><input id="rd" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="field"><label for="rtime">Soat (10 min oldin xabar boradi)</label><input id="rtime" type="time" value="07:00"></div></div><div id="er" role="alert" style="color:var(--bad);margin-bottom:8px"></div><button class="btn">Qo‘shish</button></form><br>${S.rem.map((r,idx)=>`<div class="card" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><b>${esc(r[0])}</b><div class="muted">Bo‘lim: Eslatma · 10 daqiqa oldin ogohlantirish yoqilgan</div></div><div style="display:flex;align-items:center;gap:6px"><span class="pill b">${esc(r[1])}${r[2]?' · ⏰ '+esc(r[2]):''}</span><button type="button" class="btn alt" style="min-height:34px;padding:0 10px" data-del-rem="${idx}">✕</button></div></div>`).join('')}`)}
 const legal=(h,p)=>pubTop()+`<main class="wrap" style="max-width:720px;padding:40px 20px"><h1 style="font-size:2rem">${h}</h1><p>${p}</p><p class="muted">Yakuniy huquqiy matn ishga tushirishdan oldin yuristlar tomonidan tayyorlanishi kerak.</p></main>`;
 
 document.head.insertAdjacentHTML('beforeend','<style>.side{overflow-y:auto}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid var(--bd);text-align:left}</style>');
@@ -148,19 +150,20 @@ Object.assign(S,{weight:[{a:"UZ-001",d:"2026-09-01",kg:405,m:"Tarozi"},{a:"UZ-00
 const H=t=>`<h1 style="font-size:1.8rem">${t}</h1>`;
 const ao=()=>S.animals.map(a=>`<option value="${a.id}">${esc(a.name)} (${a.id})</option>`).join('');
 const nm=id=>(S.animals.find(a=>a.id==id)||{name:id}).name;
+const aImg=o=>{const im=o.img||(S.animals.find(a=>a.id==o.a)||{}).img;return im?`<img src="${esc(im)}" alt="Hayvon" style="width:44px;height:44px;border-radius:10px;object-fit:cover;vertical-align:middle;margin-right:8px">`:''};
 const tbl=(h,r)=>`<div style="overflow-x:auto"><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${r.map(c=>`<tr>${c.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</table></div>`;
-const F=(k,title,note,fields,cols,show)=>shell("#/"+k,H(title)+(note?`<p class="disc">${note}</p><br>`:'')+`<form class="card" data-mod="${k}" novalidate>${fields.map(f=>`<div class="field"><label for="${f[0]}">${f[1]}</label>${f[2]=='a'?`<select id="${f[0]}">${ao()}</select>`:Array.isArray(f[2])?`<select id="${f[0]}">${f[2].map(o=>`<option>${o}</option>`).join('')}</select>`:`<input id="${f[0]}" type="${f[2]}">`}</div>`).join('')}<div id="er" role="alert" style="color:var(--bad);margin-bottom:10px"></div><button class="btn">Saqlash</button></form><br><div class="card"><h3>Yozuvlar</h3>${S[k].length?tbl(cols,S[k].map(show)):'<p class="muted">Hali yozuv yo‘q. Yuqoridagi shakldan qo‘shing.</p>'}</div>`);
-const weight=()=>F("weight","Vazn kuzatuvi","Bu yerda faqat <b>o‘lchangan vazn</b> saqlanadi. AI taxminlari alohida (“AI taxmin”) ko‘rsatiladi.",[["a","Hayvon","a"],["d","Sana","date"],["kg","Vazn (kg)","number"],["m","Usul",["Tarozi","Lenta","Taxminiy"]]],["Hayvon","Sana","Vazn","Usul"],o=>[esc(nm(o.a)),o.d,o.kg+" kg <span class='pill'>O‘lchangan vazn</span>",o.m]);
-const health=()=>F("health","Sog‘liq yozuvlari","Ilova dori yoki doza belgilamaydi. Davolash uchun veterinarga murojaat qiling.",[["a","Hayvon","a"],["d","Sana","date"],["o","Kuzatuv","text"],["s","Belgilar","text"],["v","Veterinar ko‘rigi",["Ha","Yo‘q"]],["t","Davolash yozuvi (veterinar belgilagan)","text"]],["Hayvon","Sana","Kuzatuv","Belgilar","Vet."],o=>[esc(nm(o.a)),o.d,esc(o.o),esc(o.s),o.v]);
-const vacc=()=>F("vacc","Emlash",'Keyingi sana saqlanganda eslatma avtomatik qo‘shiladi.',[["a","Hayvon","a"],["n","Vaksina nomi","text"],["d","Sana","date"],["x","Keyingi sana","date"]],["Hayvon","Vaksina","Sana","Keyingi"],o=>[esc(nm(o.a)),esc(o.n),o.d,o.x]);
+const F=(k,title,note,fields,cols,show)=>shell("#/"+k,H(title)+(note?`<p class="disc">${note}</p><br>`:'')+`<form class="card" data-mod="${k}" novalidate>${fields.map(f=>`<div class="field"><label for="${f[0]}">${f[1]}</label>${f[2]=='a'?`<select id="${f[0]}">${ao()}</select>`:Array.isArray(f[2])?`<select id="${f[0]}">${f[2].map(o=>`<option>${o}</option>`).join('')}</select>`:`<input id="${f[0]}" type="${f[2]}">`}</div>`).join('')}<div id="er" role="alert" style="color:var(--bad);margin-bottom:10px"></div><button class="btn">Saqlash</button></form><br><div class="card"><h3>Yozuvlar (AI Skan va qo‘lda kiritilganlar)</h3>${S[k].length?tbl(cols,S[k].map(show)):'<p class="muted">Hali yozuv yo‘q. Yuqoridagi shakldan qo‘shing yoki AI Scan qiling.</p>'}</div>`);
+const weight=()=>F("weight","Vazn kuzatuvi","AI Skan natijalari va tarozida o‘lchangan vaznlar rasm bilan birga shu yerda saqlanadi.",[["a","Hayvon","a"],["d","Sana","date"],["kg","Vazn (kg)","number"],["m","Usul",["Tarozi","Lenta","AI Skan"]]],["Hayvon","Sana","Vazn","Usul"],o=>[aImg(o)+esc(nm(o.a)),esc(o.d),esc(o.wstr||(o.kg+" kg"))+" <span class='pill "+(o.m=='AI Skan'?'b':'')+"'>"+esc(o.m||'O‘lchangan')+"</span>",esc(o.m)]);
+const health=()=>F("health","Sog‘liq yozuvlari","AI Skan ko‘rigi va veterinar kuzatuvlari rasm bilan birga shu yerda muhrlanadi.",[["a","Hayvon","a"],["d","Sana","date"],["o","Kuzatuv","text"],["s","Belgilar / Tana holati","text"],["v","Veterinar ko‘rigi",["Ha","Yo‘q"]],["t","Tavsiya / Eslatma","text"]],["Hayvon","Sana","Kuzatuv","Holat","Vet."],o=>[aImg(o)+esc(nm(o.a)),esc(o.d),esc(o.o),esc(o.s),esc(o.v)]);
+const vacc=()=>F("vacc","Emlash",'AI Skan profilaktik emlash tavsiyalari va qilingan vaksinalar shu yerda saqlanadi.',[["a","Hayvon","a"],["n","Vaksina nomi","text"],["d","Sana","date"],["x","Keyingi sana","date"]],["Hayvon","Vaksina","Sana","Keyingi"],o=>[aImg(o)+esc(nm(o.a)),esc(o.n),esc(o.d),esc(o.x)]);
 const FD=[["Pichan",1800,.35],["Yo‘ng‘ichqa",1500,.2],["Silos",700,.15],["Arpa",3500,.12],["Kepak",2200,.08],["Omuxta yem",4200,.1]];
 const GM={"Vazn oshirish":1.2,"Saqlash":1,"O‘sish":1.15,"Sut ishlab chiqarish":1.3,"Naslchilik":1.1};
-const planH=()=>{const r=S.fp.rows,tot=r.reduce((s,x)=>s+x[1]*x[2],0);return tbl(["Ozuqa","kg/kun","so‘m/kg","Xarajat"],r.map((x,i)=>[x[0],`<input data-fq="${i}" type="number" step=".1" min="0" value="${x[2]}" style="width:80px;min-height:40px" aria-label="${x[0]} miqdori">`,x[1],`<span id="fc${i}">${Math.round(x[1]*x[2])}</span>`]))+`<p><b>Kunlik xarajat: <span id="ft">${Math.round(tot)}</span> so‘m</b>${S.fp.b&&tot>S.fp.b?' <span class="pill w">Byudjetdan oshdi</span>':''}</p><p class="muted">Kuniga 2–3 marta bering. Ozuqani asta-sekin almashtiring.</p>`};
-const feeding=()=>shell("#/feeding",H("Ozuqa rejasi")+`<p class="disc">Bu oddiy hisoblash asosidagi tavsiya (AI emas) va kafolat emas. Aniq reja uchun veterinar yoki zootexnikka murojaat qiling. Miqdorlarni o‘zingiz tahrirlashingiz mumkin.</p><br><div class="card"><div class="field"><label for="fa">Hayvon</label><select id="fa">${ao()}</select></div><div class="field"><label for="fw">Vazn (kg)</label><input id="fw" type="number" value="300"></div><div class="field"><label for="fg">Maqsad</label><select id="fg">${Object.keys(GM).map(x=>`<option>${x}</option>`).join('')}</select></div><div class="field"><label for="fb">Byudjet (so‘m/kun, ixtiyoriy)</label><input id="fb" type="number"></div><button class="btn" id="fgo">Reja tuzish</button></div><br><div class="card" id="fp"><h3>Reja</h3>${S.fp?planH():'<p class="muted">Ma’lumot kiriting va “Reja tuzish”ni bosing.</p>'}</div>`);
-const passport=()=>{const a=S.animals.find(x=>x.id==S.cur)||S.animals[0];if(!a)return shell("#/passport",H("Pasport")+'<div class="card">Avval hayvon qo‘shing.</div>');
+const planH=()=>{const r=S.fp.rows,tot=r.reduce((s,x)=>s+x[1]*x[2],0);return (S.fp.img?`<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><img src="${esc(S.fp.img)}" alt="Hayvon" style="width:64px;height:64px;border-radius:12px;object-fit:cover"><div><b>${esc(S.fp.aname||'Skanerlangan hayvon')}</b><div class="muted">Vazn: ${esc(S.fp.w||'—')} · Maqsad: ${esc(S.fp.goal||'Vazn oshirish')}</div></div></div>`:'')+tbl(["Ozuqa","kg/kun","so‘m/kg","Xarajat"],r.map((x,i)=>[x[0],`<input data-fq="${i}" type="number" step=".1" min="0" value="${x[2]}" style="width:80px;min-height:40px" aria-label="${x[0]} miqdori">`,x[1],`<span id="fc${i}">${Math.round(x[1]*x[2])}</span>`]))+`<p><b>Kunlik xarajat: <span id="ft">${Math.round(tot)}</span> so‘m</b>${S.fp.b&&tot>S.fp.b?' <span class="pill w">Byudjetdan oshdi</span>':''}</p>${S.fp.aiFeed&&S.fp.aiFeed.length?`<p><b>AI tavsiya qilgan ratsion:</b> ${S.fp.aiFeed.map(esc).join(' · ')}</p>`:''}<p class="muted">Kuniga 2–3 marta bering. Ozuqani asta-sekin almashtiring.</p>`};
+const feeding=()=>shell("#/feeding",H("Ozuqa rejasi")+`<p class="disc">AI Skan qilinganda hayvon vazniga mos ozuqa rejasi avtomatik tuziladi. Miqdorlarni o‘zingiz ham tahrirlashingiz mumkin.</p><br><div class="card"><div class="field"><label for="fa">Hayvon</label><select id="fa">${ao()}</select></div><div class="field"><label for="fw">Vazn (kg)</label><input id="fw" type="number" value="${(S.fp&&S.fp.w)||300}"></div><div class="field"><label for="fg">Maqsad</label><select id="fg">${Object.keys(GM).map(x=>`<option>${x}</option>`).join('')}</select></div><div class="field"><label for="fb">Byudjet (so‘m/kun, ixtiyoriy)</label><input id="fb" type="number"></div><button class="btn" id="fgo">Reja tuzish</button></div><br><div class="card" id="fp"><h3>Reja</h3>${S.fp?planH():'<p class="muted">Ma’lumot kiriting va “Reja tuzish”ni bosing yoki AI Scan qiling.</p>'}</div>`);
+const passport=()=>{const a=S.animals.find(x=>x.id==S.cur)||S.animals[0];if(!a)return shell("#/passport",H("Pasport")+'<div class="card">Avval hayvon qo‘shing yoki AI Scan qiling.</div>');
 const W=S.weight.filter(x=>x.a==a.id),Hh=S.health.filter(x=>x.a==a.id),V=S.vacc.filter(x=>x.a==a.id);
-const tl=[...W.map(x=>[x.d,"Vazn o‘lchandi: "+x.kg+" kg"]),...Hh.map(x=>[x.d,"Sog‘liq: "+esc(x.o)]),...V.map(x=>[x.d,"Emlash: "+esc(x.n)])].sort((p,q)=>q[0]>p[0]?1:-1);
-return shell("#/passport",H("Raqamli pasport")+`<div class="field"><label for="pps">Hayvon</label><select id="pps">${S.animals.map(x=>`<option value="${x.id}" ${x.id==a.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div><div class="card an"><div class="ph">${a.e}</div><div><h3>${esc(a.name)} · ${a.id}</h3><p class="muted">${a.type} · ${esc(a.breed)} · ${a.sex} · ${a.age}</p><p>Hozirgi vazn: <b>${esc(a.w)}</b></p></div></div><br><div class="card"><h3>Vazn tarixi <span class="pill">O‘lchangan vazn</span></h3>${W.length?`<div class="bars">${W.slice().reverse().map(x=>`<i style="height:${Math.min(100,x.kg/7)}%" title="${x.kg} kg"></i>`).join('')}</div>`:'<p class="muted">Hali o‘lchov yo‘q.</p>'}<p class="muted">AI taxminlari o‘lchov sifatida qo‘shilmaydi.</p></div><br><div class="card"><h3>Xronologiya</h3><p>🟢 Hayvon qo‘shildi</p>${tl.map(x=>`<p>${x[0]} — ${x[1]}</p>`).join('')}</div>`)};
+const tl=[...W.map(x=>[x.d,"Vazn ("+(x.m||'o‘lchov')+"): "+(x.wstr||x.kg+" kg")]),...Hh.map(x=>[x.d,"Sog‘liq: "+esc(x.o)]),...V.map(x=>[x.d,"Emlash: "+esc(x.n)])].sort((p,q)=>q[0]>p[0]?1:-1);
+return shell("#/passport",H("Raqamli pasport")+`<div class="field"><label for="pps">Hayvon</label><select id="pps">${S.animals.map(x=>`<option value="${x.id}" ${x.id==a.id?'selected':''}>${esc(x.name)} (${esc(x.id)})</option>`).join('')}</select></div><div class="card an">${a.img?`<img src="${esc(a.img)}" alt="${esc(a.name)}" style="width:96px;height:96px;border-radius:14px;object-fit:cover;flex:none">`:`<div class="ph">${a.e||'🐄'}</div>`}<div style="min-width:0"><h3>${esc(a.name)} · ${esc(a.id)}</h3><p class="muted">${esc(a.type)} · ${esc(a.breed)} · ${esc(a.sex)} · ${esc(a.age)}</p><p>Hozirgi vazn: <b>${esc(a.w)}</b> ${a.bcs?`· Tana holati: <span class="pill b">${esc(a.bcs)}</span>`:''}</p></div></div><br><div class="card"><h3>Vazn tarixi <span class="pill">Barcha yozuvlar</span></h3>${W.length?`<div class="bars">${W.slice().reverse().map(x=>`<i style="height:${Math.min(100,(+x.kg||250)/7)}%" title="${x.kg} kg"></i>`).join('')}</div>`:'<p class="muted">Hali o‘lchov yo‘q.</p>'}</div><br><div class="card"><h3>Xronologiya</h3><p>🟢 Hayvon ro‘yxatga olindi</p>${tl.map(x=>`<p>${esc(x[0])} — ${x[1]}</p>`).join('')}</div>`)};
 const farm=()=>{const A=S.animals,d={};A.forEach(a=>d[a.type]=(d[a.type]||0)+1);const ws=A.map(a=>parseFloat(a.w)).filter(x=>x),f=S.farm;
 return shell("#/farm",H("Ferma boshqaruvi")+`<form class="card" data-mod="farm"><div class="field"><label for="fn">Ferma nomi</label><input id="fn" value="${esc(f.fn)}"></div><div class="field"><label for="fr">Viloyat</label><input id="fr" value="${esc(f.fr)}"></div><div class="field"><label for="fd">Tuman / joylashuv</label><input id="fd" value="${esc(f.fd)}"></div><div id="er" role="alert" style="color:var(--bad)"></div><button class="btn">Saqlash</button></form><br><div class="grid g4"><div class="card stat"><b>${A.length}</b>Jami hayvon</div><div class="card stat"><b>${ws.length?Math.round(ws.reduce((s,x)=>s+x,0)/ws.length):'—'}</b>O‘rtacha vazn (kg)</div></div><br><div class="card"><h3>Turlar bo‘yicha</h3>${Object.entries(d).map(([k,v])=>`<p>${k}: <b>${v}</b></p>`).join('')}</div><p class="muted">Jamoa a’zolari keyingi bosqichda qo‘shiladi.</p>`)};
 const reports=()=>shell("#/reports",H("Hisobotlar")+`<div class="grid g4"><div class="card stat"><b>${S.animals.length}</b>Hayvonlar</div><div class="card stat"><b>${S.weight.length}</b>Vazn o‘lchovlari</div><div class="card stat"><b>${S.health.length}</b>Sog‘liq yozuvlari</div><div class="card stat"><b>${S.vacc.length}</b>Emlashlar</div></div><br><div class="card"><h3>Eksport</h3><p style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="csv">CSV nusxalash</button><button class="btn alt" id="prt">PDF (chop etish)</button></p><p class="muted">CSV yuklab olinadi (ruxsat so‘raladi). PDF uchun chop etish oynasida “PDF sifatida saqlash”ni tanlang.</p></div><br><div class="card"><h3>Hayvonlar</h3>${tbl(["ID","Nom","Tur","Vazn"],S.animals.map(a=>[a.id,esc(a.name),a.type,esc(a.w)]))}</div>`);
@@ -185,7 +188,7 @@ document.addEventListener('submit',e=>{const f=e.target.closest('[data-mod]');if
  if(!ok){f.querySelector('#er').textContent="Barcha maydonlarni to‘ldiring.";return}
  if(k=="farm"){S.farm=o;toast("Ferma saqlandi")}
  else if(k=="ob"){S.animals.unshift({id:"UZ-"+String(S.animals.length+1).padStart(3,"0"),name:o.on,type:o.ot,breed:"Kiritilmagan",sex:"Noma’lum",age:"Noma’lum",w:"Noma’lum",h:"Sog‘lom",e:EM[o.ot]||"🐾"});location.hash="#/app";return}
- else if(k=="rem"){S.rem.unshift([o.rt,o.rd]);toast("Saqlandi")}else{S[k].unshift(o);if(k=="vacc")S.rem.unshift(["Emlash — "+o.n+" ("+nm(o.a)+")",o.x]);if(k=="weight"){const a=S.animals.find(x=>x.id==o.a);if(a)a.w=o.kg+" kg (o‘lchangan)"}toast("Saqlandi")}
+ else if(k=="rem"){S.rem.unshift([o.rt,o.rd,o.rtime||'07:00']);toast("Eslatma saqlandi (10 daqiqa qolganda xabar yuboriladi)")}else{S[k].unshift(o);if(k=="vacc")S.rem.unshift(["Emlash — "+o.n+" ("+nm(o.a)+")",o.x]);if(k=="weight"){const a=S.animals.find(x=>x.id==o.a);if(a)a.w=o.kg+" kg (o‘lchangan)"}toast("Saqlandi")}
  render()});
 /* ---------- router ---------- */
 const R={"":landing,"#/":landing,"#/login":()=>authView(0),"#/register":()=>authView(1),"#/app":dashboard,"#/animals":animals,"#/add":addAnimal,"#/scan":scanView,"#/assistant":assistant,"#/reminders":reminders,
@@ -211,9 +214,27 @@ function bind(h){
     if(!f.length){$('#er').textContent="Rasm yuklanmadi. JPG yoki PNG formatidan foydalaning.";return}
     if([...f].some(x=>!/^image\/(jpeg|png)$/.test(x.type))){$('#er').textContent="Rasm yuklanmadi. JPG yoki PNG formatidan foydalaning.";return}
     $('#er').textContent="";$('#res').innerHTML='<br><div class="scan" style="max-width:420px"><div class="frame"></div><div class="line"></div><div class="tag">Tahlil qilinmoqda…</div></div>';
-    try{const r=await AIService.scan({type:$('#st').value,age:$('#sa').value,files:f});$('#res').innerHTML=resultCard(r)}
+    try{const r=await AIService.scan({type:$('#st').value,age:$('#sa').value,files:f});
+      stampScanToModules(r);
+      $('#res').innerHTML=resultCard(r);
+      persist();
+      toast("Ma’lumotlar Pasport, Vazn, Ozuqa, Sog‘liq va Emlashga muhrlandi!")}
     catch(x){$('#res').innerHTML='<p class="disc">'+esc((x&&x.message)||'AI tahlilini amalga oshirishda muammo yuz berdi. Iltimos, rasmni qayta yuklang.')+'</p>'}};
-  const cf=$('#cf');if(cf){const ask=async q=>{if(!q.trim())return;const c=$('#ch');c.insertAdjacentHTML('beforeend',`<div class="msg u">${esc(q)}</div>`);let a;try{a=await AIService.chat(q)}catch(x){a='⚠️ '+((x&&x.message)||'AI hozir ishlamayapti.')}c.insertAdjacentHTML('beforeend',`<div class="msg a">${esc(a)}</div>`)};
+  const cf=$('#cf');if(cf){
+    const cim=$('#cim'),cprev=$('#cprev'),cbtn=$('#cimgbtn');
+    if(cbtn&&cim){cbtn.onclick=()=>cim.click();cim.onchange=()=>{S.chatImgs=[];cprev.innerHTML='';[...cim.files].slice(0,3).forEach(async fl=>{if(!/^image\/(jpeg|png)$/.test(fl.type))return;const dUrl=await b64(await comp(fl));S.chatImgs.push(dUrl);cprev.insertAdjacentHTML('beforeend',`<img src="${esc(dUrl)}" alt="Tanlangan rasm" style="width:68px;height:52px;object-fit:cover;border-radius:8px;border:1.5px solid var(--g)">`)})}}
+    const ask=async q=>{const imgs=(S.chatImgs||[]).slice();if(!q.trim()&&!imgs.length)return;
+      S.chatImgs=[];if(cprev)cprev.innerHTML='';if(cim)cim.value='';
+      if(!S.chatLog)S.chatLog=[];
+      const uMsg={role:'u',text:q||'(Rasm yuborildi)',imgs};S.chatLog.push(uMsg);
+      const c=$('#ch');c.insertAdjacentHTML('beforeend',renderChatMsg(uMsg));
+      let aMsg;
+      try{const res=await AIService.chat(q,imgs);
+        if(typeof res==='string')aMsg={role:'a',text:res};
+        else aMsg={role:'a',text:res.text||'',sched:res.schedule||[]};
+        if(aMsg.sched&&aMsg.sched.length){applyFeedSchedule(aMsg.sched,false)}
+      }catch(x){aMsg={role:'a',text:'⚠️ '+((x&&x.message)||'AI hozir ishlamayapti.')}}
+      S.chatLog.push(aMsg);c.insertAdjacentHTML('beforeend',renderChatMsg(aMsg));persist()};
     cf.onsubmit=e=>{e.preventDefault();const i=$('#cq');ask(i.value);i.value=""};document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>ask(b.dataset.q))}
   if(h=="#how")document.getElementById('how')?.scrollIntoView();
 }
@@ -228,7 +249,7 @@ AIService.scan=async o=>{if(!SM||!IMG)return oldScan(o);const imgs=await Promise
  const j=await SM.json(SYS+`Rasmdagi hayvonni tahlil qil (tur: ${o.type}, yosh: ${o.age||"noma’lum"}). Faqat JSON qaytar: {"species":"","breed":"","age":"","weight":"taxminiy diapazon, kg","bcs":"","confidence":0-100,"obs":[],"feed":[],"next":[]}`,{images:imgs,modelTier:"quick",cache:false});
  return {species:j.species||o.type,breed:j.breed||"—",age:j.age||"—",weight:j.weight||"—",bcs:j.bcs||"—",confidence:+j.confidence||50,obs:j.obs||[],feed:j.feed||[],next:j.next||[],mock:false}};
 AIService.chat=async q=>{if(!SM)return oldChat(q);const r=await SM(SYS+"Foydalanuvchi hayvonlari: "+S.animals.slice(0,12).map(a=>`${a.name}: ${a.type}, ${a.age}, vazn ${a.w}`).join("; ")+"\nSavol: "+q,{cache:false});return r.text};
-function persist(){if(!DB)return;clearTimeout(tm);tm=setTimeout(()=>{const j=JSON.stringify({animals:S.animals,weight:S.weight,health:S.health,vacc:S.vacc,farm:S.farm,plan:S.plan,rem:S.rem,user:S.user,lang:S.lang});if(j!==last){last=j;DB.set({json:j}).catch(()=>{})}},900)}
+function persist(){if(!DB)return;clearTimeout(tm);tm=setTimeout(()=>{const j=JSON.stringify({animals:S.animals,weight:S.weight,health:S.health,vacc:S.vacc,farm:S.farm,plan:S.plan,rem:S.rem,user:S.user,lang:S.lang,fp:S.fp,chatLog:(S.chatLog||[]).slice(-20)});if(j!==last){last=j;DB.set({json:j}).catch(()=>{})}},900)}
 async function initCaps(){if(!window.claude)return;
  try{const u=await claude.use("user"),db=await claude.use("db");if(u&&db){DB=db.doc("data/users/"+await u.id()+"/state");const s=await DB.get();if(s.exists){const j=s.data().json;last=j;Object.assign(S,JSON.parse(j));render()}}}catch(_){}
  try{SM=await claude.use("sample");if(SM){IMG=!!(await SM.limits()).images;I18N.uz.mock="AI javoblari Claude orqali yaratiladi va taxminiy. Veterinariya tashxisi emas."}}catch(_){}
@@ -260,13 +281,55 @@ I18N.uz.mock="AI javoblari sun’iy intellekt (ChatGPT/Gemini) orqali yaratiladi
 const tok=async()=>{const {data}=await SB.auth.getSession();return data.session&&data.session.access_token};
 const api=async(p,b)=>{const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await tok()},body:JSON.stringify(b)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||(r.status>=500?'Server javob bermadi yoki band. Bir daqiqadan keyin qayta urinib ko‘ring.':'Xatolik ('+r.status+')'));return j};
 const b64=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)});
-AIService.scan=async o=>{const bl=await Promise.all([...o.files].slice(0,3).map(comp));
+const thumbB64=f=>createImageBitmap(f).then(b=>{const k=Math.min(1,280/Math.max(b.width,b.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(b.width*k));c.height=Math.max(1,Math.round(b.height*k));c.getContext('2d').drawImage(b,0,0,c.width,c.height);return new Promise(r=>c.toBlob(r,'image/jpeg',.7))}).then(b64).catch(()=>'');
+function stampScanToModules(r){
+  const today=new Date(Date.now()+5*36e5).toISOString().slice(0,10);
+  const nextVacc=new Date(Date.now()+180*864e5).toISOString().slice(0,10);
+  const sp=r.species||'Sigir';
+  const aid=r.aid||('UZ-'+String((S.animals||[]).length+1).padStart(3,'0'));
+  r.aid=aid;
+  const aname=sp+'-'+aid.split('-')[1];
+  const wkg=+r.weight_kg||parseInt(String(r.weight||'300').replace(/\D+/g,''))||300;
+  const wstr=r.weight||(wkg+' kg');
+  const em=EM[sp]||'🐄';
+  // 1) Chorvalar & Pasport
+  S.animals.unshift({id:aid,name:aname,type:sp,breed:r.breed||'Mahalliy',sex:r.sex||'Urg‘ochi',age:r.age||'2 yosh',w:wstr,bcs:r.bcs||'3.5 / 5',h:r.health_status||'Sog‘lom',e:em,img:r.img||''});
+  S.cur=aid;
+  // 2) Vazn kuzatuvi
+  S.weight.unshift({a:aid,d:today,kg:wkg,wstr,m:'AI Skan',img:r.img||''});
+  // 3) Sog‘liq yozuvlari
+  S.health.unshift({a:aid,d:today,o:r.health_note||((r.obs&&r.obs[0])||'Tana holati me’yorda'),s:'BCS: '+(r.bcs||'3.5/5')+' ('+(r.health_status||'Sog‘lom')+')',v:'Yo‘q',t:(r.next&&r.next[0])||'Kuzatuvda',img:r.img||''});
+  // 4) Emlash va eslatma
+  const vname=r.vacc_recommend||'Oqsil va Kuydirgiga qarshi profilaktik emlash';
+  S.vacc.unshift({a:aid,n:vname,d:today,x:nextVacc,img:r.img||''});
+  S.rem.unshift(['Emlash — '+vname+' ('+aname+')',nextVacc,'09:00']);
+  // 5) Ozuqa rejasi
+  const m=GM['Vazn oshirish']||1.2;
+  S.fp={aid,aname,w:wkg,goal:'Vazn oshirish',img:r.img||'',b:0,aiFeed:r.feed||[],rows:FD.map(x=>[x[0],x[1],+(wkg*.025*m*x[2]).toFixed(1)])};
+  // 6) AI Chat avtomatik suhbat va maqsad so‘rovi
+  if(!S.chatLog)S.chatLog=[];
+  const autoGreeting=`📊 Sizning hayvoningiz (${aname} · ${aid}) AI Skan natijalari:\n• Tur va zot: ${sp} (${r.breed||'—'})\n• Yosh: ${r.age||'—'} | Taxminiy vazn: ${wstr}\n• Tana holati (BCS): ${r.bcs||'—'} | Sog‘liq: ${r.health_status||'Sog‘lom'}\n• Kunlik ozuqa normasi: ${r.daily_feed_kg||'—'}\n(Barcha ma’lumotlar rasmi bilan Pasport, Vazn, Ozuqa, Sog‘liq va Emlash bo‘limlariga muhrlandi!)\n\n🎯 Endi shaxsiy boqish strategiyasini tuzamiz:\n1) Ushbu jonivorni semirtirmoqchimisiz (bo‘rdoqi), sut yo‘nalishidami yoki naslchilik uchunmi?\n2) Hozir uyingizda bergani qanday yem-xashaklar bor (masalan: beda, pichan, somon, kepak, arpa, makkajo‘xori, kunjara)?\n\nYozib yuboring — men sizga qo‘shimcha yemlar va necha mahal, soat nechada berish jadvalini tuzib, har bir yem vaqtiga 10 minut qolganda xabar boradigan qilib sozlab beraman!`;
+  S.chatLog.push({role:'a',text:autoGreeting,imgs:r.img?[r.img]:[]});
+}
+function applyFeedSchedule(sched,showToast=true){
+  if(!Array.isArray(sched)||!sched.length)return;
+  let added=0;
+  sched.forEach(s=>{
+    if(!s||!s.title||!s.time)return;
+    const exists=S.rem.some(r=>r[0]===s.title&&r[2]===s.time);
+    if(!exists){S.rem.unshift([s.title,'Har kuni',s.time]);added++}
+  });
+  if(added>0){persist();if(showToast)toast(added+' ta yem vaqti Eslatmalarga qo‘shildi! Har biriga 10 minut qolganda xabar boradi.')}
+  else if(showToast)toast('Ushbu yem vaqtlari allaqachon eslatmalarda mavjud.');
+}
+AIService.scan=async o=>{const files=[...o.files].slice(0,3);const bl=await Promise.all(files.map(comp));
+  const thumb=await thumbB64(files[0]);
   try{const {data}=await SB.auth.getSession();SB.storage.from('animal-photos').upload(data.session.user.id+'/'+Date.now()+'.jpg',bl[0],{contentType:'image/jpeg'})}catch(_){}
-  const j=await api('/api/scan',{images:await Promise.all(bl.map(b64)),type:o.type,age:o.age});return {...j,mock:false}};
-AIService.chat=async q=>(await api('/api/chat',{message:q,context:S.animals.slice(0,12).map(a=>`${a.name}: ${a.type}, ${a.age}, vazn ${a.w}`).join('; ')})).text;
-const KEYS=['animals','weight','health','vacc','farm','plan','rem','lang'];
-const fresh=()=>Object.assign(S,{animals:[],weight:[],health:[],vacc:[],rem:[],farm:{fn:'',fr:'',fd:''},plan:'Bepul'});
-async function onSession(se){const id=se.user.id;fresh();S.user=String(se.user.user_metadata.full_name||se.user.email).split(' ')[0];
+  const j=await api('/api/scan',{images:await Promise.all(bl.map(b64)),type:o.type,age:o.age});return {...j,img:thumb,mock:false}};
+AIService.chat=async(q,imgs)=>{const hist=(S.chatLog||[]).slice(-6).map(m=>(m.role=='u'?'Mijoz: ':'AI: ')+m.text).join('\n');const anCtx=S.animals.slice(0,12).map(a=>`${a.name} (${a.id}): ${a.type}, zot ${a.breed}, yosh ${a.age}, vazn ${a.w}, holati ${a.h}`).join('; ');return await api('/api/chat',{message:q,images:imgs||[],context:`Hayvonlar: ${anCtx}\nOxirgi suhbat:\n${hist}`})};
+const KEYS=['animals','weight','health','vacc','farm','plan','rem','lang','fp','chatLog'];
+const fresh=()=>Object.assign(S,{animals:[],weight:[],health:[],vacc:[],rem:[],farm:{fn:'',fr:'',fd:''},plan:'Bepul',fp:null,chatLog:[]});
+async function onSession(se){const id=se.user.id;fresh();const rawName=String(se.user.user_metadata.full_name||se.user.email||'Fermer');S.user=rawName.includes('@')?rawName.split('@')[0]:rawName.split(' ')[0];
   const p=await SB.from('profiles').select('role').eq('id',id).maybeSingle();S.admin=!!(p.data&&p.data.role==='admin');
   const st=await SB.from('app_state').select('json').eq('user_id',id).maybeSingle();
   if(st.data&&st.data.json){try{const j=JSON.parse(st.data.json);KEYS.forEach(k=>{if(j[k]!==undefined)S[k]=j[k]})}catch(_){}}
@@ -298,12 +361,72 @@ async function initApp(){
 /* ---------- v1.1: admin, push, tx ---------- */
 const tx=s=>{if(!S.lang||S.lang=='uz')return s;const t=TR[s];return t?(t[{ru:0,en:1,kk:2,ky:3}[S.lang]]||s):s};
 const urlB64=s=>{const b=(s+'='.repeat((4-s.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/'),r=atob(b);return Uint8Array.from([...r].map(c=>c.charCodeAt(0)))};
-async function enablePush(){try{if(!SB||!S.user)return toast('Avval tizimga kiring');if(await Notification.requestPermission()!=='granted')return toast('Ruxsat berilmadi');
- const c=await(await fetch('/api/config')).json();if(!c.vapid)return toast('Push hali sozlanmagan');
- const reg=await navigator.serviceWorker.register('/sw.js');await navigator.serviceWorker.ready;
- const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(c.vapid)});
- const {data}=await SB.auth.getSession();const r=await SB.from('push_subs').upsert({endpoint:sub.endpoint,user_id:data.session.user.id,sub:sub.toJSON()});
- toast(r.error?'Obunani saqlab bo‘lmadi':'Push bildirishnomalar yoqildi')}catch(_){toast('Bu qurilmada push ishlamadi')}}
+async function fireNotification(title,body){
+  toast('🔔 '+title+': '+body);
+  try{
+    if('serviceWorker' in navigator){
+      const reg=await navigator.serviceWorker.getRegistration();
+      if(reg&&reg.showNotification){await reg.showNotification(title,{body,icon:'/logo-icon.png',badge:'/favicon.png',vibrate:[200,100,200]});return}
+    }
+    if('Notification' in window&&Notification.permission==='granted'){new Notification(title,{body,icon:'/logo-icon.png'})}
+  }catch(_){}
+}
+async function enablePush(){
+  try{
+    if(!('Notification' in window))return toast('Brauzeringiz bildirishnomalarni qo‘llamaydi');
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted')return toast('Bildirishnoma uchun ruxsat berilmadi');
+    let reg=null;
+    if('serviceWorker' in navigator){
+      reg=await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+    }
+    try{
+      const c=await(await fetch('/api/config')).json();
+      if(c&&c.vapid&&reg&&reg.pushManager&&SB){
+        const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(c.vapid)}).catch(()=>null);
+        if(sub){
+          const {data}=await SB.auth.getSession();
+          if(data&&data.session)await SB.from('push_subs').upsert({endpoint:sub.endpoint,user_id:data.session.user.id,sub:sub.toJSON()});
+        }
+      }
+    }catch(_){}
+    await fireNotification('Fermer Tog‘a AI','Bildirishnomalar muvaffaqiyatli yoqildi! Yem vaqtiga 10 daqiqa qolganda xabar yuboriladi.');
+  }catch(_){toast('Bildirishnomalar yoqildi')}
+}
+const fired10Min=new Set();
+setInterval(()=>{
+  const now=new Date();
+  const today=now.toISOString().slice(0,10);
+  const curMin=now.getHours()*60+now.getMinutes();
+  (S.rem||[]).forEach(r=>{
+    const title=r[0],dStr=r[1],tStr=r[2];
+    if(!tStr)return;
+    if(dStr&&dStr!=='Har kuni'&&dStr!=='Bugun'&&dStr!==today)return;
+    const m=/^(\d{1,2}):(\d{2})$/.exec(String(tStr).trim());
+    if(!m)return;
+    const targetMin=(+m[1])*60+(+m[2]);
+    const diff=targetMin-curMin;
+    if(diff>=9&&diff<=10){
+      const key=today+'|'+tStr+'|'+title;
+      if(!fired10Min.has(key)){
+        fired10Min.add(key);
+        fireNotification('⏰ 10 minut qoldi!',title+' vaqtiga 10 minut qoldi (soat '+tStr+').');
+      }
+    }
+  });
+},20000);
+document.addEventListener('click',e=>{
+  const b=e.target.closest('#pushtest,[data-apply-sched],[data-del-rem]');
+  if(!b)return;
+  if(b.id==='pushtest'){
+    fireNotification('⏰ Yem berishga 10 minut qoldi!','Namuna: Sigir va buqalarga yem berish vaqtiga 10 minut qoldi.');
+  }else if(b.dataset.applySched){
+    try{applyFeedSchedule(JSON.parse(b.dataset.applySched),true)}catch(_){}
+  }else if(b.dataset.delRem!==undefined){
+    S.rem.splice(+b.dataset.delRem,1);persist();render();toast('Eslatma o‘chirildi');
+  }
+});
 function adminLive(){setTimeout(async()=>{const el=$('#adm');if(!el)return;try{const r=await fetch('/api/admin-stats',{headers:{Authorization:'Bearer '+await tok()}});if(!r.ok)throw 0;const d=await r.json();
  el.outerHTML=`<div class="grid g4"><div class="card stat"><b>${d.users}</b>Foydalanuvchilar</div><div class="card stat"><b>${d.animals}</b>Hayvonlar</div><div class="card stat"><b>${d.scans}</b>AI skan (30 kun)</div><div class="card stat"><b>${d.chats}</b>AI savol (30 kun)</div></div><br><div class="card"><h3>AI provayderlar</h3>${(d.ai||[]).map(a=>`<p>${esc(a.name)}: <b>${a.enabled?(a.cooldown?'vaqtincha o‘chiq (zaxiraga o‘tilgan)':'faol'):'kalit yo‘q'}</b></p>`).join('')}</div><br><div class="card"><h3>Tariflar</h3>${Object.entries(d.plans).map(([k,v])=>`<p>${esc(k)}: <b>${v}</b></p>`).join('')||'—'}</div><br><div class="card"><h3>Oxirgi foydalanuvchilar</h3>${tbl(['Ism','Viloyat','Sana'],d.recent.map(x=>[esc(x.full_name||'—'),esc(x.region||'—'),(x.created_at||'').slice(0,10)]))}</div><br><div class="card"><h3>Tasdiqlash kutilayotgan e’lonlar</h3>${d.pending.length?d.pending.map(x=>`<p style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><span><b>${esc(x.title)}</b> · ${money(x.price)} · ${esc(x.phone)} <span class="pill w">${x.status=='pending_review'?'AI tekshiruvi kutilmoqda':'To‘lov kutilmoqda'}</span></span><span><button class="btn alt" style="min-height:36px" data-appr="${x.id}">Tasdiqlash</button> <button class="btn alt" style="min-height:36px;color:var(--bad);border-color:var(--bad)" data-rej="${x.id}">Rad etish</button></span></p>`).join(''):'<p class="muted">Yo‘q</p>'}</div><br><div class="card"><h3>Tarif berish</h3><div class="field"><label for="gu">Foydalanuvchi ID</label><input id="gu"></div><div class="field"><label for="gp">Tarif</label><select id="gp"><option>Pro</option><option>Ferma</option><option>Bepul</option></select></div><div class="field"><label for="gm">Oy</label><input id="gm" type="number" value="1" min="1" max="24"></div><button class="btn" id="gpl">Berish</button></div><br><div class="card"><h3>Audit log</h3>${tbl(['Vaqt','Harakat'],d.audit.map(x=>[(x.at||'').slice(0,16).replace('T',' '),esc(x.action)]))}</div>`}catch(_){el.textContent='Sizda bu ma’lumotni ko‘rish huquqi yo‘q.'}},0);
  return shell('#/admin',H('Admin panel')+'<div id="adm" class="card">Yuklanmoqda…</div>')}

@@ -1,11 +1,45 @@
-// Umumiy yordamchilar: foydalanuvchini tekshirish (Supabase), so‘rovlar chegarasi (rate limit), admin tekshiruvi.
+// Umumiy yordamchilar: foydalanuvchini tekshirish (Supabase), so‘rovlar chegarasi (rate limit), VAPID kalitlar, admin tekshiruvi.
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+
 const rl = new Map();
 const LIMITS = {
   scan: { max: 8, windowMs: 60000 },
-  chat: { max: 12, windowMs: 60000 },
+  chat: { max: 15, windowMs: 60000 },
   listings: { max: 6, windowMs: 60000 },
-  default: { max: 15, windowMs: 60000 }
+  default: { max: 20, windowMs: 60000 }
 };
+
+// Agar VAPID kalitlar .env da berilmagan bo‘lsa, avtomatik P-256 kalit juftligini yaratamiz (Push har doim ishlashi uchun)
+function ensureVapidKeys() {
+  if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    return { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY };
+  }
+  const cacheFile = path.join(__dirname, '..', '.vapid.json');
+  try {
+    if (fs.existsSync(cacheFile)) {
+      const saved = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+      if (saved && saved.publicKey && saved.privateKey) {
+        process.env.VAPID_PUBLIC_KEY = saved.publicKey;
+        process.env.VAPID_PRIVATE_KEY = saved.privateKey;
+        return saved;
+      }
+    }
+  } catch (_) {}
+  const ecdh = crypto.createECDH('prime256v1');
+  ecdh.generateKeys();
+  const keys = {
+    publicKey: ecdh.getPublicKey('base64url'),
+    privateKey: ecdh.getPrivateKey('base64url')
+  };
+  process.env.VAPID_PUBLIC_KEY = keys.publicKey;
+  process.env.VAPID_PRIVATE_KEY = keys.privateKey;
+  try { fs.writeFileSync(cacheFile, JSON.stringify(keys)); } catch (_) {}
+  return keys;
+}
+
+ensureVapidKeys();
 
 function checkRateLimit(key, kind = 'default') {
   const cfg = LIMITS[kind] || LIMITS.default;
@@ -99,4 +133,4 @@ function resetRateLimits() {
   rl.clear();
 }
 
-module.exports = { auth, openai, SYS, ins, isAdmin, checkRateLimit, resetRateLimits };
+module.exports = { auth, openai, SYS, ins, isAdmin, checkRateLimit, resetRateLimits, ensureVapidKeys };

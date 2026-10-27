@@ -65,10 +65,9 @@ async function tryModels(name, list, deadline, fn) {
       } catch (e) {
         last = e;
         if (e.status === 404 || /not found|not supported for generateContent|shut down/i.test(e.message || '')) {
-          badModel[name + ':' + m] = Date.now() + 3600000; // 1 soatga o‘chiramiz
+          badModel[name + ':' + m] = Date.now() + 3600000;
           break;
         }
-        // 503 (band) bo‘lsa va vaqt yetsa, qisqa kutib xuddi shu modelni 1 marta qayta sinaymiz
         if (e.status === 503 && attempt === 0 && (!deadline || Date.now() < deadline - 4000)) {
           const waitMs = Number(process.env.AI_RETRY_MS) || 800;
           await sleep(waitMs);
@@ -76,7 +75,7 @@ async function tryModels(name, list, deadline, fn) {
         }
         if (e.status === 429 || isTimeout(e) || [500, 502, 503, 504].includes(e.status)) {
           badModel[name + ':' + m] = Date.now() + (e.status === 429 ? 60000 : 20000);
-          break; // keyingi modelga o‘tamiz
+          break;
         }
         if (!SWITCH.includes(e.status) && !isTimeout(e)) throw e;
         break;
@@ -93,7 +92,7 @@ const P = {
     call({ system, user, images, json, max, deadline }) {
       const key = P.openai.key();
       const content = images && images.length
-        ? [{ type: 'text', text: user }, ...images.map(u => ({ type: 'image_url', image_url: { url: u, detail: 'low' } }))]
+        ? [{ type: 'text', text: user }, ...images.map(u => ({ type: 'image_url', image_url: { url: u, detail: 'high' } }))]
         : user;
       const attemptMax = Number(process.env.AI_ATTEMPT_MS) || 14000;
       return tryModels('openai', P.openai.models(), deadline, async model => {
@@ -105,7 +104,8 @@ const P = {
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
           body: JSON.stringify({
             model,
-            max_completion_tokens: max || 600,
+            temperature: 0.1,
+            max_completion_tokens: max || 700,
             ...(json ? { response_format: { type: 'json_object' } } : {}),
             messages: [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content }]
           })
@@ -137,10 +137,12 @@ const P = {
       return tryModels('gemini', list, deadline, async model => {
         const rem = deadline ? deadline - Date.now() - 500 : attemptMax;
         if (rem < 1500) throw Object.assign(new Error('Vaqt tugadi'), { name: 'TimeoutError', status: 504 });
+        const isLegacyTemp = !/gemini-[34]/i.test(model);
         const body = {
           contents: [{ role: 'user', parts }],
           generationConfig: {
-            maxOutputTokens: Math.min(Math.max(Number(max) || 500, 150), 2048),
+            maxOutputTokens: Math.min(Math.max(Number(max) || 600, 150), 2048),
+            ...(isLegacyTemp ? { temperature: 0.1 } : {}),
             ...(json ? { responseMimeType: 'application/json' } : {}),
             ...geminiThinkingConfig(model)
           }
@@ -185,7 +187,7 @@ function parseJson(raw) {
 }
 
 async function run(opts, parse) {
-  const totalMs = Math.min(Number(process.env.AI_DEADLINE_MS) || 45000, 48000); // Render ~100s da uzadi, 45s ichida tugatamiz
+  const totalMs = Math.min(Number(process.env.AI_DEADLINE_MS) || 45000, 48000);
   opts = { ...opts, deadline: Date.now() + totalMs };
   const order = (process.env.AI_PRIORITY || 'openai,gemini')
     .split(',')
@@ -218,8 +220,8 @@ async function run(opts, parse) {
   throw last;
 }
 
-exports.chat = (system, user, max) => run({ system, user, max: max || 600 });
-exports.vision = (system, user, images, max, fast) => run({ system, user, images, json: true, max: max || 500, fast: !!fast }, parseJson);
+exports.chat = (system, user, max, images) => run({ system, user, images, max: max || 700 });
+exports.vision = (system, user, images, max, fast) => run({ system, user, images, json: true, max: max || 650, fast: !!fast }, parseJson);
 exports.parseJson = parseJson;
 exports.mask = mask;
 exports.resetState = () => {
@@ -258,7 +260,6 @@ exports.explain = e => {
   return t + tag;
 };
 
-// Gemini'da mavjud va generateContent'ni qo‘llaydigan modellarni aniqlash (kalit hech qachon chiqarilmaydi)
 async function listGeminiModels() {
   const key = P.gemini.key();
   if (!key) return [];
@@ -279,7 +280,6 @@ async function listGeminiModels() {
 }
 exports.listGeminiModels = listGeminiModels;
 
-// Tashxis: har bir provayderni alohida sinaydi (kalitni hech qachon ko‘rsatmaydi)
 exports.test = async () => {
   const out = [];
   for (const n of Object.keys(P)) {

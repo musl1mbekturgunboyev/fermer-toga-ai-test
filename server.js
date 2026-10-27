@@ -12,6 +12,8 @@ for (const f of ['.env', '.env.local']) {
   } catch (_) {}
 }
 
+if (!process.env.CRON_SECRET) process.env.CRON_SECRET = 'internal-cron-secret-fermer-toga';
+
 const T = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -122,7 +124,7 @@ if (require.main === module) {
     setTimeout(async () => {
       const r = { status() { return r; }, json() {}, end() {} };
       try {
-        await require('./api/send-reminders.js')({ headers: { authorization: 'Bearer ' + process.env.CRON_SECRET } }, r);
+        await require('./api/send-reminders.js')({ headers: { authorization: 'Bearer ' + process.env.CRON_SECRET }, body: { mode: 'daily' } }, r);
       } catch (e) {
         console.error(e);
       }
@@ -130,6 +132,14 @@ if (require.main === module) {
     }, t - n);
   };
   cron();
+
+  // Har 60 soniyada: yem berish / parvarish vaqtiga 10 minut qolgan eslatmalarni tekshirib push yuboradi
+  setInterval(async () => {
+    const r = { status() { return r; }, json() {}, end() {} };
+    try {
+      await require('./api/send-reminders.js')({ headers: { authorization: 'Bearer ' + process.env.CRON_SECRET }, body: { mode: '10min' } }, r);
+    } catch (_) {}
+  }, 60000).unref();
 }
 
 module.exports = { server, createHandler };
