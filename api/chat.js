@@ -1,17 +1,13 @@
 const { auth, ins } = require('./_lib');
 const ai = require('./_ai');
 
-const SYS = `Sen "Fermer Tog‘a AI" — O‘zbekiston chorvadorlari uchun aqlli zootexnik va parvarish strategisan.
-Faqat sodda, tushunarli o‘zbek (lotin) tilida javob ber.
-Qoidalar:
-1. Hech qachon aniq veterinariya tashxisi qo‘yma va dori dozasini yozma. Jiddiy kasallik belgilarida veterinarga murojaat qilishni ayt.
-2. Agar foydalanuvchi rasm yuborgan bo‘lsa (hayvon rasmi, yem-xashak rasmi, tezak/holat rasmi), rasmni diqqat bilan tahlil qilib, aniq va foydali ma’lumot ber.
-3. Agar suhbatda skaner qilingan hayvon haqida gap ketayotgan bo‘lsa:
-   - Mijozning maqsadini aniqla (semirtirish/bo‘rdoqi, sut ko‘paytirish, naslchilik yoki sog‘lom o‘stirish).
-   - Mijozda hozir uyda bergani qanday yem-xashaklar borligini so‘ra.
-   - Mijoz bor yemlarini aytganda, ularni qanday miqdorda berishni va tezroq natija olish uchun yana qanday qo‘shimcha yemlar (masalan: kepak, arpa yormasi, kunjaralar, makkajo‘xori, mineral tuz/mel) qo‘shish kerakligini taklif qil, va: "Shu tartibda kunlik eslatma vaqtlarini belgilab beraymi?" deb so‘ra.
-   - Har safar kunlik yem berish / suv berish vaqtlarini rejalashtirganda yoki mijoz rozi bo‘lganda, javobingda soat nechada va necha mahal berishni aniq jadval qilib yoz VA javobning eng oxirida quyidagi formatda maxsus blok qo‘sh (tizim buni o‘qib, avtomatik eslatmalarga qo‘shadi va 10 minut qolganda xabar yuboradi):
-<SCHEDULE>[{"title":"Ertalabki yem va pichan berish","time":"07:00"},{"title":"Tushlik suv va ozuqa berish","time":"13:00"},{"title":"Kechki yem va beda berish","time":"19:00"}]</SCHEDULE>`;
+const LANG_MAP = {
+  uz: 'sodda, tushunarli o‘zbek (lotin) tilida',
+  ru: 'на русском языке грамотно и понятно для фермеров',
+  en: 'in clear English tailored for farmers',
+  kk: 'қазақ тілінде (кириллица)',
+  ky: 'кыргыз тилинде (кириллица)'
+};
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
@@ -27,12 +23,24 @@ module.exports = async (req, res) => {
 
   if (!m && !imgs.length) return res.status(400).json({ error: 'Savol yoki rasm kiriting' });
 
+  const lang = String(b.lang || 'uz').toLowerCase();
+  const langPrompt = LANG_MAP[lang] || LANG_MAP.uz;
+
+  const SYS = `You are "Fermer Tog‘a AI" — an intelligent livestock consultant, animal nutritionist and livestock strategist.
+Always reply strictly in the requested language: ${langPrompt}.
+Guidelines:
+1. Never provide strict veterinary clinical diagnoses or pharmaceutical drug dosages. Recommend contacting a local veterinarian for serious distress.
+2. If photos are provided (animal, feed/forage, manure/condition), analyze the visual details thoroughly and offer practical farm advice.
+3. Tailor feeding and care advice to the farmer's specific goal (fattening/beef, dairy, breeding, or growth).
+4. When planning feeding schedules or if requested, provide clear times and meal allocations. Whenever presenting daily feeding times, append a structured JSON block at the very end in this format:
+<SCHEDULE>[{"title":"Morning feed & hay","time":"07:00"},{"title":"Noon water & silage","time":"13:00"},{"title":"Evening feed & alfalfa","time":"19:00"}]</SCHEDULE>`;
+
   const ctx = String(b.context || '').trim().slice(0, 2500);
-  const prompt = m || 'Ushbu rasmda nima tasvirlangan va chorvador uchun qanday tavsiya berasiz?';
+  const prompt = m || 'Please analyze this photo and advise the farmer.';
 
   try {
     const r = await ai.chat(
-      SYS + (ctx ? '\n\nFoydalanuvchi fermasi va suhbat tarixi:\n' + ctx : ''),
+      SYS + (ctx ? '\n\nFarm Context & History:\n' + ctx : ''),
       prompt,
       800,
       imgs.length ? imgs : undefined

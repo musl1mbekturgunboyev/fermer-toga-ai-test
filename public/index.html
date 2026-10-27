@@ -243,8 +243,29 @@ function bind(h){
 }
 /* ---------- v3: capabilities, i18n, animation, brand, legal ---------- */
 let SM=null,IMG=false,DL=null,AS=null,DB=null,last="",tm;
-const LO=()=>[["uz","O‘zbekcha"],["ru","Русский"],["en","English"],["kk","Қазақша"],["ky","Кыргызча"]].map(x=>`<option value="${x[0]}" ${(S.lang||'uz')==x[0]?'selected':''}>${x[1]}</option>`).join('');
-const TR={"Kirish":["Войти","Log in","Кіру","Кирүү"],"Ro‘yxatdan o‘tish":["Регистрация","Sign up","Тіркелу","Катталуу"],"Bepul boshlash":["Начать бесплатно","Start free","Тегін бастау","Акысыз баштоо"],"AI qanday ishlaydi?":["Как работает ИИ?","How does AI work?","ЖИ қалай жұмыс істейді?","ЖИ кантип иштейт?"],"Qanday ishlaydi?":["Как это работает?","How it works","Қалай жұмыс істейді?","Кантип иштейт?"],"Imkoniyatlar":["Возможности","Features","Мүмкіндіктер","Мүмкүнчүлүктөр"],"Tariflar":["Тарифы","Pricing","Тарифтер","Тарифтер"],"Bosh sahifa":["Главная","Home","Басты бет","Башкы бет"],"Chorvalar":["Скот","Livestock","Мал","Мал"],"AI yordamchi":["ИИ-помощник","AI Assistant","ЖИ көмекші","ЖИ жардамчы"],"Eslatmalar":["Напоминания","Reminders","Еске салулар","Эскертмелер"],"↩ Chiqish":["↩ Выйти","↩ Log out","↩ Шығу","↩ Чыгуу"],"Mening chorvalarim":["Мои животные","My animals","Менің малым","Менин малым"],"Chorvangizni AI bilan aqlli boshqaring.":["Умно управляйте скотом с помощью ИИ.","Manage your livestock smartly with AI.","Малыңызды ЖИ арқылы ақылды басқарыңыз.","Малыңызды ЖИ менен акылдуу башкарыңыз."],"Chorvangiz uchun aqlli yordamchi.":["Умный помощник для вашего скота.","A smart assistant for your livestock.","Малыңызға арналған ақылды көмекші.","Малыңызга акылдуу жардамчы."]};
+const LO=()=>[["uz","O‘zbekcha"],["ru","Русский"],["en","English"],["kk","Қазақша"],["ky","Кыргызча"]].map(x=>`<option value="${x[0]}" ${(S.lang||localStorage.getItem('ft_lang')||'uz')==x[0]?'selected':''}>${x[1]}</option>`).join('');
+let TR={};
+function applyI18n(){
+  const lang=S.lang||localStorage.getItem('ft_lang')||'uz';
+  document.documentElement.lang=lang;
+  if(!TR||typeof TR!=='object'||lang==='uz')return;
+  const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+  let n;
+  while(n=w.nextNode()){
+    const v=n.nodeValue.trim();
+    if(v&&TR[v]&&TR[v][lang]){
+      n.nodeValue=n.nodeValue.replace(v,TR[v][lang]);
+    }
+  }
+  document.querySelectorAll('[placeholder]').forEach(el=>{
+    const p=el.getAttribute('placeholder');
+    if(p&&TR[p]&&TR[p][lang])el.setAttribute('placeholder',TR[p][lang]);
+  });
+  document.querySelectorAll('[aria-label]').forEach(el=>{
+    const a=el.getAttribute('aria-label');
+    if(a&&TR[a]&&TR[a][lang])el.setAttribute('aria-label',TR[a][lang]);
+  });
+}
 const comp=f=>createImageBitmap(f).then(b=>{const k=Math.min(1,768/Math.max(b.width,b.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(b.width*k));c.height=Math.max(1,Math.round(b.height*k));c.getContext('2d').drawImage(b,0,0,c.width,c.height);return new Promise(r=>c.toBlob(r,'image/jpeg',.75))});
 const SYS="Sen Fermer Tog‘a AI yordamchisan. Faqat sodda o‘zbek (lotin) tilida javob ber. Hech qachon aniq tashxis qo‘yma, dori yoki doza yozma; jiddiy belgilarda veterinarga murojaat qilishni ayt. Taxminlarni diapazon va noaniqlik bilan ayt. ";
 const oldScan=AIService.scan.bind(AIService),oldChat=AIService.chat.bind(AIService);
@@ -259,7 +280,7 @@ async function initCaps(){if(!window.claude)return;
  try{DL=await claude.use("downloads")}catch(_){}try{AS=await claude.use("assets")}catch(_){}
  if(SM&&/#\/(scan|assistant)/.test(location.hash))render()}
 function post(){persist();
- if(S.lang&&S.lang!='uz'){const i={ru:0,en:1,kk:2,ky:3}[S.lang],w=document.createTreeWalker($('#root'),NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode()){const v=n.nodeValue.trim();if(TR[v])n.nodeValue=n.nodeValue.replace(v,TR[v][i])}}
+  applyI18n();
  const hh=$('.hero h1');if(hh&&!$('.blob')){hh.innerHTML=hh.textContent.split(' ').map((w,i)=>`<span class="rv" style="--d:${i*90}ms;display:inline-block;margin-right:.25em">${w}</span>`).join('');const hs=$('.hero');hs.insertAdjacentHTML('afterbegin','<i class="blob" style="width:300px;height:300px;background:#8cc79f;top:-60px;right:-40px"></i><i class="blob" style="width:220px;height:220px;background:#2D7FF9;bottom:-50px;left:-30px;animation-delay:-4s"></i>')}
  document.querySelectorAll('.stat b').forEach(b=>{const n=parseInt(b.textContent.replace(/\s/g,''));if(isNaN(n)||n<2)return;const t0=performance.now();(function f(t){const p=Math.min(1,(t-t0)/800);b.textContent=Math.round(n*(1-Math.pow(1-p,3))).toLocaleString('ru');if(p<1)requestAnimationFrame(f)})(t0)});
  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.1});
@@ -276,7 +297,14 @@ document.addEventListener('click',e=>{const b=e.target.closest('#mic,#push,#lsv,
  else if(b.id=="push"){enablePush();return;try{Notification.requestPermission().then(p=>{toast(p=="granted"?"Bildirishnomalar yoqildi":"Ruxsat berilmadi");if(p=="granted")new Notification("Fermer Tog‘a AI","Eslatmalar yoqildi")})}catch(_){toast("Bu brauzerda bildirishnoma yo‘q")}}
  else if(b.id=="lsv"){DL?DL.save({filename:"fermer-toga-ai-belgi.svg",data:logo(512)}).catch(()=>{}):toast("Yuklab olish mavjud emas")}
  else if(b.dataset.copy){navigator.clipboard.writeText("🐄 Chorvangiz uchun aqlli yordamchi\n🤖 AI tahlil • Ozuqa • Vazn • Sog‘liq\n🇺🇿 O‘zbekiston fermerlari uchun").then(()=>toast("Nusxalandi"),()=>toast("Nusxalab bo‘lmadi"))}});
-document.addEventListener('change',e=>{if(e.target.id=="lg"||e.target.id=="lgp"){S.lang=e.target.value;document.documentElement.lang=S.lang;render()}});
+document.addEventListener('change',e=>{if(e.target.id=="lg"||e.target.id=="lgp"){
+  S.lang=e.target.value;
+  try{localStorage.setItem('ft_lang',S.lang)}catch(_){}
+  document.documentElement.lang=S.lang;
+  persist();
+  render();
+  toast(tx("Til almashtirildi")||"Til almashtirildi");
+}});
 window.addEventListener('hashchange',()=>{if(location.hash=="#how"){document.getElementById('how')?.scrollIntoView({behavior:'smooth'});return}render()});
 /* ---------- PRODUCTION: Supabase + /api (OpenAI serverda) ---------- */
 let SB=null;
@@ -340,7 +368,7 @@ function applyFeedSchedule(sched,showToast=true){
 AIService.scan=async o=>{const files=[...o.files].slice(0,3);const bl=await Promise.all(files.map(comp));
   const thumb=await thumbB64(files[0]);
   try{const {data}=await SB.auth.getSession();SB.storage.from('animal-photos').upload(data.session.user.id+'/'+Date.now()+'.jpg',bl[0],{contentType:'image/jpeg'})}catch(_){}
-  const j=await api('/api/scan',{images:await Promise.all(bl.map(b64)),type:o.type,age:o.age});return {...j,img:thumb,mock:false}};
+  const j=await api('/api/scan',{images:await Promise.all(bl.map(b64)),type:o.type,age:o.age,lang:S.lang||localStorage.getItem('ft_lang')||'uz'});return {...j,img:thumb,mock:false}};
 AIService.chat=async(q,imgs)=>{const hist=(S.chatLog||[]).slice(-6).map(m=>(m.role=='u'?'Mijoz: ':'AI: ')+m.text).join('\n');const anCtx=S.animals.slice(0,12).map(a=>`${a.name} (${a.id}): ${a.type}, zot ${a.breed}, yosh ${a.age}, vazn ${a.w}, holati ${a.h}`).join('; ');return await api('/api/chat',{message:q,images:imgs||[],context:`Hayvonlar: ${anCtx}\nOxirgi suhbat:\n${hist}`})};
 const KEYS=['animals','weight','health','vacc','farm','plan','rem','lang','fp','chatLog'];
 const fresh=()=>Object.assign(S,{animals:[],weight:[],health:[],vacc:[],rem:[],farm:{fn:'',fr:'',fd:''},plan:'Bepul',fp:null,chatLog:[]});
@@ -370,11 +398,12 @@ document.addEventListener('click',async e=>{const b=e.target.closest('#gg,#rs,#l
   else{e.preventDefault();await SB.auth.signOut();location.href='/'}});
 async function initApp(){
   DL={save:({filename,data})=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data]));a.download=filename;a.click();return Promise.resolve()}};
-  fetch('/i18n.json').then(r=>r.ok?r.json():{}).then(j=>{Object.entries(j).forEach(([k,v])=>TR[k]=[v.ru,v.en,v.kk,v.ky]);if(S.lang&&S.lang!='uz')render()}).catch(()=>{});try{const c=await(await fetch('/api/config')).json();if(!c.url||!c.key)throw new Error('Serverda SUPABASE_URL yoki SUPABASE_ANON_KEY kiritilmagan');if(!window.supabase)throw new Error('Supabase skripti yuklanmadi (internet yoki reklama bloker)');window.CFG=c;SB=window.supabase.createClient(c.url,c.key);
+  try{const langSaved=localStorage.getItem('ft_lang');if(langSaved)S.lang=langSaved}catch(_){}
+  fetch('/i18n.json').then(r=>r.ok?r.json():{}).then(j=>{TR=j;if(S.lang&&S.lang!='uz'){applyI18n();render()}}).catch(()=>{});try{const c=await(await fetch('/api/config')).json();if(!c.url||!c.key)throw new Error('Serverda SUPABASE_URL yoki SUPABASE_ANON_KEY kiritilmagan');if(!window.supabase)throw new Error('Supabase skripti yuklanmadi (internet yoki reklama bloker)');window.CFG=c;SB=window.supabase.createClient(c.url,c.key);
     SB.auth.onAuthStateChange(ev=>{if(ev==='PASSWORD_RECOVERY'){const p=prompt('Yangi parol (kamida 8 belgi)');if(p&&p.length>=8)SB.auth.updateUser({password:p}).then(()=>toast('Parol yangilandi'))}});
     const {data}=await SB.auth.getSession();if(data.session)await onSession(data.session)}catch(e){toast('Serverga ulanib bo‘lmadi: '+((e&&e.message)||e))}}
 /* ---------- v1.1: admin, push, tx ---------- */
-const tx=s=>{if(!S.lang||S.lang=='uz')return s;const t=TR[s];return t?(t[{ru:0,en:1,kk:2,ky:3}[S.lang]]||s):s};
+const tx=s=>{const lang=S.lang||localStorage.getItem('ft_lang')||'uz';if(lang=='uz'||!TR)return s;const t=TR[s];return (t&&t[lang])||s;};
 const urlB64=s=>{const b=(s+'='.repeat((4-s.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/'),r=atob(b);return Uint8Array.from([...r].map(c=>c.charCodeAt(0)))};
 async function fireNotification(title,body){
   toast('🔔 '+title+': '+body);

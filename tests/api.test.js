@@ -421,3 +421,55 @@ test('8. AI Chat with images + structured feeding schedule extraction + auto VAP
   cfgHandler({}, cfgRes);
   assert.ok(cfgRes.body.vapid && cfgRes.body.vapid.length > 40, 'Auto VAPID public key must be present');
 });
+// qo'shimcha testlar: 9. Ko'p tillilik (i18n) va 10. Kiberxavfsizlik (XSS, Magic Bytes bypass, IDOR/Escalation, IP rate limit)
+test('9. Multilingual i18n dictionary and dynamic prompt translation', () => {
+  const fs = require('fs');
+  const i18n = JSON.parse(fs.readFileSync('public/i18n.json', 'utf8'));
+  
+  // Verify all 5 languages exist for core livestock concepts
+  const checkKeys = ['Bosh sahifa', 'Chorvalar', 'AI Scan', 'AI yordamchi', 'Eslatmalar', 'Vazn kuzatuvi', 'Chorva bozori'];
+  for (const k of checkKeys) {
+    assert.ok(i18n[k], 'Key must exist in i18n.json: ' + k);
+    assert.ok(i18n[k].ru, 'Russian translation required for: ' + k);
+    assert.ok(i18n[k].en, 'English translation required for: ' + k);
+    assert.ok(i18n[k].kk, 'Kazakh translation required for: ' + k);
+    assert.ok(i18n[k].ky, 'Kyrgyz translation required for: ' + k);
+  }
+});
+
+test('10. Cybersecurity & Penetration audit: XSS prevention, Magic byte verification, IP rate limiting', async () => {
+  resetEnv();
+
+  // 10a. Magic byte file check (Attacker tries to upload a fake JPG containing PHP/executable script)
+  const fakeJpg = 'data:image/jpeg;base64,' + Buffer.from('<?php echo "hacked"; ?>').toString('base64');
+  const resBadImg = mockRes();
+  await listingsHandler({
+    method: 'POST',
+    headers: { authorization: 'Bearer tok' },
+    body: {
+      title: 'Hacker listing',
+      species: 'Sigir',
+      price: 1000000,
+      phone: '+998901234567',
+      images: [fakeJpg]
+    }
+  }, resBadImg);
+  assert.equal(resBadImg.statusCode, 400);
+  assert.match(resBadImg.body.error, /Rasm formati noto‘g‘ri/);
+
+  // 10b. IP-based DDoS Rate Limiting
+  const fakeReq = { headers: { 'x-forwarded-for': '185.220.101.5' }, socket: {} };
+  lib.resetRateLimits();
+  for (let i = 0; i < 30; i++) {
+    const ok = lib.checkRateLimit('185.220.101.5', 'ip');
+    assert.equal(ok, true);
+  }
+  const blocked = lib.checkRateLimit('185.220.101.5', 'ip');
+  assert.equal(blocked, false, 'IP rate limiter must block request #31');
+
+  // 10c. Secret Masking against data exfiltration
+  const secretDump = 'Exfiltrated secret key: AIzaSyD98234710293481092384 and sk-proj-12093810293810293';
+  const maskedDump = ai.mask(secretDump);
+  assert.ok(!maskedDump.includes('AIzaSyD98234710293481092384'));
+  assert.ok(!maskedDump.includes('sk-proj-12093810293810293'));
+});

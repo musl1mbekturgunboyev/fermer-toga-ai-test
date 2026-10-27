@@ -1,21 +1,13 @@
 const { auth, ins } = require('./_lib');
 const ai = require('./_ai');
 
-const SYS = `Sen "Fermer Tog‘a AI" — O‘zbekistondagi eng tajribali zootexnik va chorva eksperti tizimisan.
-Faqat aniq, sodda o‘zbek (lotin) tilida va FAQAT JSON formatida javob ber.
-Har safar bitta rasm uchun BIR XIL, barqaror va haqiqiy zootexnik me’yorlarga asoslangan aniq o‘lchamlarni chiqar:
-- Qoramol (Sigir/Buqa/Buzoq):
-  • Buzoq (1-6 oy): 45–150 kg; (6-12 oy): 150–260 kg
-  • G‘unajin / yosh novvos (1-2 yosh): 260–420 kg
-  • Voyaga yetgan sigir (2.5-6 yosh): Mahalliy/Qora-ola 380–480 kg, Golshtin/Simmental/Shvits 480–620 kg
-  • Voyaga yetgan buqa (2-5 yosh): Mahalliy 450–600 kg, Simmental/Angus/Gereford/Limuzin 620–880 kg
-- Qo‘y / Qo‘zi:
-  • Qo‘zi (3-6 oy): 22–38 kg
-  • Hisori / Edilboy / Jaydari qo‘y (1-3 yosh): urg‘ochi 52–75 kg, qo‘chqor 75–125 kg
-- Echki: 32–65 kg
-- Ot: 380–560 kg
-Tana holati (BCS 1 dan 5 gacha): qovurg‘a va dumg‘aza suyaklari ko‘rinishiga qarab aniq bahola (1-juda oriq, 2-oriqroq, 3-o‘rtacha/me’yorda, 4-semiz/bo‘rdoqi, 5-o‘ta semiz).
-Hech qachon aniq veterinariya tashxisi yoki dori dozasi yozma, lekin profilaktik emlash va parvarish rejasini aniq ko‘rsat.`;
+const LANG_MAP = {
+  uz: 'sodda o‘zbek (lotin) tilida',
+  ru: 'на русском языке',
+  en: 'in English',
+  kk: 'қазақ тілінде (кириллица)',
+  ky: 'кыргыз тилинде (кириллица)'
+};
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
@@ -32,27 +24,42 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Rasm yuklanmadi. JPG yoki PNG formatidan foydalaning.' });
   }
 
+  const lang = String(b.lang || 'uz').toLowerCase();
+  const langPrompt = LANG_MAP[lang] || LANG_MAP.uz;
+
   const type = String(b.type || 'Sigir').trim().slice(0, 20);
   const age = String(b.age || '').trim().slice(0, 30);
 
-  const prompt = `Rasmdagi hayvonni chuqur zootexnik ko‘rikdan o‘tkaz (foydalanuvchi kiritgan tur: ${type}, kiritgan yosh: ${age || 'rasmga qarab aniqla'}).
-Quyidagi barcha maydonlarni to‘liq va aniq to‘ldirib FAQAT JSON qaytar:
+  const SYS = `You are "Fermer Tog‘a AI" — an expert livestock specialist and animal scientist.
+Provide your response strictly in JSON format. The language for textual values must be: ${langPrompt}.
+Estimate weights consistently based on proven livestock biological standards:
+- Cattle:
+  • Calves (1-6 mo): 45–150 kg; (6-12 mo): 150–260 kg
+  • Heifers / Young bulls (1-2 yr): 260–420 kg
+  • Adult cows (2.5-6 yr): 380–620 kg depending on breed
+  • Adult bulls (2-5 yr): 500–880 kg depending on breed
+- Sheep: Lambs 22–38 kg; adult 50–120 kg
+- Goats: 30–65 kg; Horses: 380–560 kg
+Evaluate Body Condition Score (BCS 1 to 5). Never prescribe pharmaceutical dosages.`;
+
+  const prompt = `Perform a thorough visual biometric evaluation of the farm animal in the photo (Declared species: ${type}, declared age: ${age || 'infer from photo'}).
+Return ONLY a valid JSON object with these exact keys translated into ${langPrompt}:
 {
-  "species": "Sigir|Buqa|Buzoq|Qo‘y|Echki|Ot",
-  "breed": "aniq zot nomi (masalan: Simmental, Qora-ola, Golshtin, Shvits, Angus, Hisori, Jaydari)",
-  "sex": "Urg‘ochi yoki Erkak",
-  "age": "aniq yosh diapazoni (masalan: 2 – 2.5 yosh)",
-  "weight": "vazn diapazoni (masalan: 410–440 kg)",
-  "weight_kg": 425,
-  "bcs": "masalan: 3.5 / 5 (Yaxshi, etdor)",
-  "health_status": "Sog‘lom yoki Kuzatuvda",
-  "health_note": "Teri qoplami, turishi, ko‘rinishi va ishtaha belgisi bo‘yicha 1 jumla xulosa",
-  "vacc_recommend": "Mavsumiy profilaktik emlash tavsiyasi (masalan: Oqsil (Yashur) va Kuydirgi (Sibir yarasi) ga qarshi profilaktika)",
-  "daily_feed_kg": "masalan: 12–14 kg quruq modda (pichan + yem)",
+  "species": "species name",
+  "breed": "breed name",
+  "sex": "Female or Male",
+  "age": "age range",
+  "weight": "weight range (e.g. 420–460 kg)",
+  "weight_kg": 440,
+  "bcs": "BCS rating (e.g. 3.5 / 5)",
+  "health_status": "Healthy or Under observation",
+  "health_note": "1 concise sentence on physical appearance and appetite",
+  "vacc_recommend": "Seasonal vaccination advice",
+  "daily_feed_kg": "daily dry matter recommendation (e.g. 12–14 kg/day)",
   "confidence": 88,
-  "obs": ["1-aniq ko‘rinadigan tana va suyak tuzilishi kuzatuvi", "2-go‘sht yoki sut yo‘nalishi salohiyati", "3-teri va jun holati"],
-  "feed": ["1-kunlik pichan/beda va силос miqdori (kg)", "2-kunlik arpa/kepak/omuxta yem miqdori (kg)", "3-suv va mineral tuz normasi"],
-  "next": ["1-vazn va o‘sishni nazorat qilish qadami", "2-veterinar profilaktika va emlash qadami"]
+  "obs": ["visual observation 1", "observation 2", "observation 3"],
+  "feed": ["feed component 1", "feed component 2", "feed component 3"],
+  "next": ["next action step 1", "next step 2"]
 }`;
 
   try {
@@ -82,7 +89,7 @@ Quyidagi barcha maydonlarni to‘liq va aniq to‘ldirib FAQAT JSON qaytar:
       daily_feed_kg: String(d.daily_feed_kg || Math.round(parsedKg * 0.03) + ' kg/kun'),
       confidence: Math.min(100, Math.max(50, Number(d.confidence) || 85)),
       obs: Array.isArray(d.obs) && d.obs.length ? d.obs.map(String) : ['Tana holati va suyak tuzilishi me’yorda'],
-      feed: Array.isArray(d.feed) && d.feed.length ? d.feed.map(String) : ['Kuniga sifatli beda/pichan va toza suv'],
+      feed: Array.isArray(d.feed) && d.feed.length ? d.feed.map(String) : ['Sifatli beda/pichan va toza suv'],
       next: Array.isArray(d.next) && d.next.length ? d.next.map(String) : ['Har 15 kunda vazn o‘zgarishini kuzatib boring'],
       provider: r.provider
     });

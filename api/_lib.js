@@ -8,10 +8,17 @@ const LIMITS = {
   scan: { max: 8, windowMs: 60000 },
   chat: { max: 15, windowMs: 60000 },
   listings: { max: 6, windowMs: 60000 },
+  ip: { max: 30, windowMs: 60000 },
   default: { max: 20, windowMs: 60000 }
 };
 
-// Agar VAPID kalitlar .env da berilmagan bo‘lsa, avtomatik P-256 kalit juftligini yaratamiz (Push har doim ishlashi uchun)
+// Client IP manzilini xavfsiz aniqlash
+function getClientIp(req) {
+  const xf = req.headers && req.headers['x-forwarded-for'];
+  if (xf) return xf.split(',')[0].trim();
+  return (req.socket && req.socket.remoteAddress) || '127.0.0.1';
+}
+
 function ensureVapidKeys() {
   if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
     return { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY };
@@ -58,6 +65,13 @@ function checkRateLimit(key, kind = 'default') {
 }
 
 async function auth(req, res, kind = 'default') {
+  // IP darajasida tekshirish (Botnet va DoS hujumlariga qarshi)
+  const ip = getClientIp(req);
+  if (!checkRateLimit(ip, 'ip')) {
+    res.status(429).json({ error: 'Juda ko‘p so‘rov (IP). Biroz kuting.' });
+    return null;
+  }
+
   const t = String((req.headers && req.headers.authorization) || '').replace(/^Bearer\s+/i, '').trim();
   if (!t) {
     res.status(401).json({ error: 'Kirish talab qilinadi' });
@@ -81,6 +95,7 @@ async function auth(req, res, kind = 'default') {
     res.status(401).json({ error: 'Sessiya yaroqsiz' });
     return null;
   }
+  // Foydalanuvchi darajasida rate limit
   if (!checkRateLimit(u.id, kind)) {
     res.status(429).json({ error: 'Juda ko‘p so‘rov. Biroz kuting.' });
     return null;
@@ -101,7 +116,6 @@ async function openai(body) {
 
 const SYS = 'Sen "Fermer Tog‘a AI" yordamchisan. Faqat sodda o‘zbek (lotin) tilida javob ber. Hech qachon aniq veterinariya tashxisi qo‘yma, dori nomi yoki dozasini yozma. Jiddiy belgilarda (qon, yeyishdan bosh tortish, nafas qiyinligi, yiqilish) veterinarga murojaat qilishni ayt. Vazn va yoshni faqat taxminiy diapazon sifatida, noaniqlikni tushuntirib ber. ';
 
-// Server tomonidagi yozuvlar (service role): AI sarfi va audit log
 async function ins(table, row) {
   const k = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!k || !process.env.SUPABASE_URL) return;
@@ -133,4 +147,4 @@ function resetRateLimits() {
   rl.clear();
 }
 
-module.exports = { auth, openai, SYS, ins, isAdmin, checkRateLimit, resetRateLimits, ensureVapidKeys };
+module.exports = { auth, openai, SYS, ins, isAdmin, checkRateLimit, resetRateLimits, ensureVapidKeys, getClientIp };
