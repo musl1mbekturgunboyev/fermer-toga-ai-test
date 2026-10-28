@@ -609,6 +609,31 @@ def run_e2e():
         assert len(severe) == 0, f"Unexpected browser console errors: {severe}"
         print("PASS 10: Zero unexpected browser console errors")
 
+        # 11. Multilingual Language Switching Verification (Russian & English)
+        driver.get(BASE_URL + "/#/profile")
+        wait.until(lambda d: "Profil" in d.page_source)
+
+        # Switch to Russian
+        driver.execute_script("document.querySelector('#lg').value = 'ru'; document.querySelector('#lg').dispatchEvent(new Event('change'));")
+        time.sleep(0.3)
+        wait.until(lambda d: "Профиль и настройки" in d.page_source)
+        assert "Главная" in driver.page_source
+        assert "Скот" in driver.page_source
+        print("PASS 11a: Russian language switched successfully (Профиль и настройки, Главная, Скот)")
+
+        # Switch to English
+        driver.execute_script("document.querySelector('#lg').value = 'en'; document.querySelector('#lg').dispatchEvent(new Event('change'));")
+        time.sleep(0.3)
+        wait.until(lambda d: "Profile and Settings" in d.page_source)
+        assert "Home" in driver.page_source
+        assert "Livestock" in driver.page_source
+        print("PASS 11b: English language switched successfully (Profile and Settings, Home, Livestock)")
+
+        # Switch back to Uzbek
+        driver.execute_script("document.querySelector('#lg').value = 'uz'; document.querySelector('#lg').dispatchEvent(new Event('change'));")
+        time.sleep(0.3)
+        wait.until(lambda d: "Profil va sozlamalar" in d.page_source)
+        print("PASS 11c: Uzbek language restored successfully")
         driver.quit()
         print("\nALL E2E SMOKE TESTS PASSED SUCCESSFULLY!")
     finally:
