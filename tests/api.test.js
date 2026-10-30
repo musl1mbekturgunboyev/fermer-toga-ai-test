@@ -28,6 +28,7 @@ function jsonResponse(status, obj, headers = {}) {
     ok: status >= 200 && status < 300,
     status,
     headers: { get: k => headers[k.toLowerCase()] || null },
+    text: async () => JSON.stringify(obj),
     json: async () => obj
   };
 }
@@ -504,4 +505,12 @@ test('13. Recovery callback restores the password form without entering the dash
 });
 test('14. Missing recovery session never marks a link verified',()=>{
  const vm=require('node:vm'),fs=require('node:fs');const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');const show=html.match(/function showRecovery\(session\)\{[^\n]+\}/)[0];const ctx={S:{}};vm.createContext(ctx);vm.runInContext(show+';showRecovery(null)',ctx);assert.equal(ctx.S.recState,undefined);
+});
+
+test('15. Database helper accepts empty successful writes and rejects malformed JSON',async()=>{
+ const {db}=require('../api/_billing');const original=global.fetch;
+ try{global.fetch=async()=>({ok:true,status:201,text:async()=>''});assert.equal(await db('app_state'),null);global.fetch=async()=>({ok:true,status:200,text:async()=>'[{"plan":"Pro"}]'});assert.equal((await db('subscriptions'))[0].plan,'Pro');global.fetch=async()=>({ok:true,status:200,text:async()=>'{'});await assert.rejects(()=>db('app_state'),/noto‘g‘ri javob/)}finally{global.fetch=original}
+});
+test('16. Email login requests a real Supabase OTP and never creates a new user',async()=>{
+ const vm=require('node:vm'),fs=require('node:fs');const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');const code=html.slice(html.indexOf('async function doAuth('),html.indexOf('async function delAcc('));let request,rendered=0;const ctx={S:{},location:{origin:'https://example.test'},$:()=>({textContent:'',style:{}}),SB:{auth:{signInWithOtp:async x=>{request=x;return {data:{},error:null}}}},render:()=>rendered++,authErr:x=>x};vm.createContext(ctx);vm.runInContext(code,ctx);await vm.runInContext("doAuth('farmer@example.test','',null)",ctx);assert.equal(request.email,'farmer@example.test');assert.equal(request.options.shouldCreateUser,false);assert.equal(ctx.S.authOtp.mode,'login');assert.equal(rendered,1);
 });

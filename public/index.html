@@ -173,7 +173,7 @@ function authView(reg){
     return pubTop()+`<main class="wrap" style="max-width:460px;padding-top:40px">
       ${!S.recState?`
         <h1 style="font-size:2rem">Parolni tiklash</h1>
-        <p class="muted">Emailingizga parolni tiklash havolasi yuboriladi. Telefon uchun SMS xizmati yoqilgan bo‘lishi kerak.</p>
+        <p class="muted">Emailingizga 6 xonali parol tiklash kodi yuboriladi. Telefon uchun SMS xizmati yoqilgan bo‘lishi kerak.</p>
         <form id="rf_send" novalidate>
           <div class="field"><label for="rec_val">Telefon yoki Gmail</label><input id="rec_val" placeholder="+998 90 123 45 67 yoki email@gmail.com" required autocomplete="username"></div>
           <div id="rec_er" role="alert" style="color:var(--bad);margin-bottom:10px"></div>
@@ -182,9 +182,9 @@ function authView(reg){
         </form>
       `:`
         <h1 style="font-size:2rem">Yangi parol o‘rnatish</h1>
-        <p class="muted">${S.recState.linkVerified?`<b>${esc(S.recState.target)}</b> tasdiqlandi. Endi yangi parolni kiriting:`:`<b>${esc(S.recState.target)}</b> manziliga tiklash xati yuborildi. Pochtangizdagi «Reset password» havolasini bosing. Havola orqali qaytganingizda kod talab qilinmaydi. Xatda kod ham bo‘lsa, uni quyida ishlatishingiz mumkin:`}</p>
+        <p class="muted">${S.recState.linkVerified?`<b>${esc(S.recState.target)}</b> tasdiqlandi. Endi yangi parolni kiriting:`:`<b>${esc(S.recState.target)}</b> manziliga yuborilgan yangi xatdagi 6 xonali kodni va yangi parolingizni kiriting:`}</p>
         <form id="rf_verify" novalidate>
-          ${S.recState.linkVerified?'':`<p class="disc">Xatda faqat havola bo‘lsa, bu formani to‘ldirmang — avval o‘sha havolani bosing.</p><div class="field"><label for="rec_code">6 xonali tasdiqlash kodi</label><input id="rec_code" type="text" maxlength="6" inputmode="numeric" placeholder="123456" autocomplete="one-time-code" style="letter-spacing:6px;font-size:1.6rem;text-align:center;font-weight:800;padding:8px" required></div>`}
+          ${S.recState.linkVerified?'':`<div class="field"><label for="rec_code">6 xonali tasdiqlash kodi</label><input id="rec_code" type="text" maxlength="6" inputmode="numeric" placeholder="123456" autocomplete="one-time-code" style="letter-spacing:6px;font-size:1.6rem;text-align:center;font-weight:800;padding:8px" required></div>`}
           <div class="field"><label for="rec_new_pw">Yangi parol (kamida 8 belgi)</label><input id="rec_new_pw" type="password" minlength="8" placeholder="••••••••" required></div>
           <div id="rec_er" role="alert" style="color:var(--bad);margin-bottom:10px"></div>
           <button class="btn" style="width:100%">Parolni yangilash va kirish</button>
@@ -193,19 +193,19 @@ function authView(reg){
       `}
     </main>`;
   }
-  if(reg===1&&S.authOtp){
+  if(S.authOtp){
     return pubTop()+`<main class="wrap" style="max-width:460px;padding-top:40px">
       <div class="card" style="padding:28px 22px;border:1.5px solid var(--g);text-align:center">
         <div style="font-size:3rem;margin-bottom:8px">✉️</div>
-        <h2 style="font-size:1.6rem;margin-bottom:8px">Gmail pochtangizni tasdiqlang</h2>
-        <p class="muted" style="margin-bottom:18px"><b>${esc(S.authOtp.email)}</b> manziliga tasdiqlash xati yuborildi. Xatdagi ko‘k «Confirm email address» havolasini bosing yoki kodni kiriting:</p>
+        <h2 style="font-size:1.6rem;margin-bottom:8px">Email kodingizni kiriting</h2>
+        <p class="muted" style="margin-bottom:18px"><b>${esc(S.authOtp.email)}</b> manziliga yuborilgan yangi xatdagi 6 xonali kodni kiriting. Kodni hech kimga bermang:</p>
         <div class="field" style="max-width:260px;margin:0 auto 14px">
           <label for="otp_code" style="text-align:center">6 xonali kod</label>
           <input id="otp_code" type="text" maxlength="6" inputmode="numeric" placeholder="123456" autocomplete="one-time-code" style="letter-spacing:8px;font-size:1.8rem;text-align:center;font-weight:800;padding:8px">
         </div>
         <div id="otp_er" role="alert" style="color:var(--bad);margin-bottom:12px;font-size:.9rem"></div>
         <button type="button" class="btn" id="btn_verify_otp" style="width:100%;min-height:48px;font-size:1rem;margin-bottom:8px">Kodni tasdiqlash va kirish</button>
-        <button type="button" class="btn alt" id="btn_check_link" style="width:100%;min-height:46px;font-size:.95rem;border:1.5px solid var(--g)">✅ Xatdagi «Confirm email» havolasini bosdim — Kirish</button>
+
         <div style="display:flex;gap:10px;justify-content:center;margin-top:14px">
           <button type="button" class="btn alt" id="btn_resend_otp" style="min-height:38px;font-size:.88rem">Kodni qayta yuborish</button>
           <button type="button" class="btn alt" id="btn_cancel_otp" style="min-height:38px;font-size:.88rem">Orqaga</button>
@@ -215,10 +215,10 @@ function authView(reg){
   }
   return pubTop()+`<main class="wrap" style="max-width:460px;padding-top:40px"><h1 style="font-size:2rem">${reg?'Ro‘yxatdan o‘tish':'Kirish'}</h1><form id="af" novalidate>
 ${reg?`<div class="field"><label for="n">To‘liq ism</label><input id="n" required autocomplete="name"></div><div class="field"><label for="p">Telefon</label><input id="p" type="tel" placeholder="+998 90 123 45 67"></div>`:''}
-<div class="field"><label for="e">Email</label><input id="e" type="email" required autocomplete="email"></div><div class="field"><label for="pw">Parol</label><input id="pw" type="password" minlength="8" required></div>
+<div class="field"><label for="e">Email</label><input id="e" type="email" required autocomplete="email"></div>${reg?'<div class="field"><label for="pw">Parol</label><input id="pw" type="password" minlength="8" required autocomplete="new-password"></div>':'<p class="muted">Kirish uchun emailingizga 6 xonali kod yuboriladi.</p>'}
 ${reg?`<div class="field"><label for="r">Viloyat</label><select id="r">${["Toshkent","Samarqand","Farg‘ona","Andijon","Namangan","Buxoro","Xorazm","Qashqadaryo","Surxondaryo","Jizzax","Sirdaryo","Navoiy","Qoraqalpog‘iston"].map(x=>`<option>${x}</option>`).join('')}</select></div>`:''}
 <div id="er" role="alert" style="color:var(--bad);margin-bottom:10px"></div>
-<button class="btn" style="width:100%">${reg?'Hisob yaratish':'Kirish'}</button>
+<button class="btn" style="width:100%">${reg?'Hisob yaratish':'Kirish kodini yuborish'}</button>
 <div style="display:flex;align-items:center;gap:10px;margin:14px 0 10px"><span style="flex:1;height:1px;background:var(--bd)"></span><span class="muted" style="font-size:.82rem">yoki</span><span style="flex:1;height:1px;background:var(--bd)"></span></div>
 <button type="button" class="btn alt" id="gg" style="width:100%;min-height:46px;background:#fff;color:#3c4043;border:1.5px solid #dadce0;border-radius:12px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer"><svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.616z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707 0-.59.102-1.167.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/></svg><span>Google orqali ${reg?'ro‘yxatdan o‘tish':'kirish'}</span></button>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:.9rem"><button type="button" class="btn alt" id="rs" style="min-height:34px;padding:0 8px;border:none;font-weight:600">Parolni unutdim</button><a href="${reg?'#/login':'#/register'}" style="color:var(--g);font-weight:700">${reg?'Kirish':'Ro‘yxatdan o‘tish'}</a></div></form></main>`;
@@ -299,9 +299,9 @@ function render(){const h=location.hash;let v=R[h];if(!v){v=landing}if(h=="#/adm
   if(guarded.includes(h)&&!S.user){location.hash="#/login";return}
   $('#root').innerHTML=v();applyI18n();window.scrollTo(0,0);bind(h);post()}
 function bind(h){
-  const af=$('#af');if(af)af.onsubmit=e=>{e.preventDefault();const em=$('#e').value,pw=$('#pw').value,n=$('#n');
+  const af=$('#af');if(af)af.onsubmit=e=>{e.preventDefault();const em=$('#e').value.trim(),pw=$('#pw')?.value||'',n=$('#n');
     if(!/^\S+@\S+\.\S+$/.test(em)){$('#er').textContent="Email noto‘g‘ri kiritilgan.";return}
-    if(pw.length<8){$('#er').textContent="Parol kamida 8 belgidan iborat bo‘lishi kerak.";return}
+    if($('#pw')&&pw.length<8){$('#er').textContent="Parol kamida 8 belgidan iborat bo‘lishi kerak.";return}
     const bt=af.querySelector('button:not([type=button])'),t0=bt.textContent;bt.disabled=true;bt.textContent='Kutilmoqda…';doAuth(em,pw,n?{full_name:n.value,phone:$('#p').value,region:$('#r').value}:null).catch(x=>{const er=$('#er');if(er){er.style.color='var(--bad)';er.textContent='Xatolik: '+((x&&x.message)||x)}}).finally(()=>{bt.disabled=false;bt.textContent=t0})};
   
   const btnVerifyOtp=$('#btn_verify_otp');
@@ -313,13 +313,12 @@ function bind(h){
       if(!/^\d{6}$/.test(code)){if(er)er.textContent='Iltimos, 6 xonali kodni kiriting.';return;}
       btnVerifyOtp.disabled=true;btnVerifyOtp.textContent='Tekshirilmoqda…';
       try{
-        let r=await SB.auth.verifyOtp({email:S.authOtp.email,token:code,type:'signup'});
-        if(r.error)r=await SB.auth.verifyOtp({email:S.authOtp.email,token:code,type:'email'});
+        const pending=S.authOtp;let r=await SB.auth.verifyOtp({email:pending.email,token:code,type:pending.mode==='login'?'email':'signup'});
         if(r.error)throw r.error;
         if(r.data&&r.data.session){
           toast('✅ Hisobingiz tasdiqlandi!');
           const s=r.data.session;delete S.authOtp;S.ob={s:0,a:{}};
-          await onSession(s);location.hash='#/onboarding';
+          await onSession(s);location.hash=pending?.mode==='login'?'#/app':'#/onboarding';
         }else{if(er)er.textContent='Kod tasdiqlanmadi. Qayta urinib ko‘ring.';}
       }catch(err){if(er)er.textContent='Kod noto‘g‘ri yoki muddati tugagan: '+authErr(err.message||'');}
       finally{btnVerifyOtp.disabled=false;btnVerifyOtp.textContent='Kodni tasdiqlash va kirish';}
@@ -328,7 +327,7 @@ function bind(h){
   const btnResendOtp=$('#btn_resend_otp');
   if(btnResendOtp&&S.authOtp){
     btnResendOtp.onclick=async()=>{
-      try{btnResendOtp.disabled=true;const r=await SB.auth.resend({type:'signup',email:S.authOtp.email,options:{emailRedirectTo:location.origin+location.pathname}});if(r.error)throw r.error;toast('Tasdiqlash xati yuborildi. Spam papkasini ham tekshiring.');}
+      try{btnResendOtp.disabled=true;const r=S.authOtp.mode==='login'?await SB.auth.signInWithOtp({email:S.authOtp.email,options:{shouldCreateUser:false,emailRedirectTo:location.origin+'/'}}):await SB.auth.resend({type:'signup',email:S.authOtp.email,options:{emailRedirectTo:location.origin+'/'}});if(r.error)throw r.error;toast('Tasdiqlash xati yuborildi. Spam papkasini ham tekshiring.');}
       catch(err){const er=$('#otp_er');if(er)er.textContent='Kodni yuborishda xatolik: '+authErr(err.message||'');}finally{setTimeout(()=>{btnResendOtp.disabled=false},60000)}
     };
   }
@@ -367,7 +366,7 @@ function bind(h){
         if(val.includes('@')){
           sessionStorage.setItem('ft_recovery_pending',val);const r=await SB.auth.resetPasswordForEmail(val,{redirectTo:location.origin+'/'});
           if(r.error)throw r.error;
-          toast('✉️ Parolni tiklash havolasi emailingizga yuborildi');
+          toast('✉️ Parolni tiklash xati yuborildi. Yangi xatni tekshiring.');
           S.recState={target:val,isEmail:true};
         }else{
           let phone=val.replace(/[^\d+]/g,'');
@@ -626,7 +625,7 @@ async function googleLogin(){
   if(er){er.style.color='var(--bad)';er.textContent='';}
   if(!SB){if(er)er.textContent='Server sozlanmagan.';return;}
   try{
-    const r=await SB.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});
+    const r=await SB.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+'/'}});
     if(r.error&&er){er.textContent='Google orqali kirib bo‘lmadi: '+authErr(r.error.message);}
   }catch(e){
     if(er)er.textContent='Google orqali kirishda xatolik: '+((e&&e.message)||e);
@@ -635,6 +634,7 @@ async function googleLogin(){
 async function doAuth(em,pw,meta){
   const er=$('#er');if(er){er.textContent='';er.style.color='var(--bad)';}
   if(!SB){if(er)er.textContent='Server sozlanmagan.';return;}
+  if(!meta){const r=await SB.auth.signInWithOtp({email:em,options:{shouldCreateUser:false,emailRedirectTo:location.origin+'/'}});if(r.error){if(er)er.textContent=authErr(r.error.message);return;}S.authOtp={email:em,mode:'login'};render();return;}
   const r=meta?await SB.auth.signUp({email:em,password:pw,options:{data:meta,emailRedirectTo:location.origin}}):await SB.auth.signInWithPassword({email:em,password:pw});
   if(r.error){if(er){er.style.color='var(--bad)';er.textContent=authErr(r.error.message);}return;}
   if(r.data&&r.data.session){
@@ -644,7 +644,7 @@ async function doAuth(em,pw,meta){
     return;
   }
   if(meta){
-    S.authOtp={email:em,meta:meta};
+    S.authOtp={email:em,meta:meta,mode:'signup'};
     render();
     return;
   }

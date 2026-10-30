@@ -42,3 +42,20 @@ Pro/Ferma narxi kelishiladi va admin panelida qo‘lda faollashtiriladi. Avtomat
 
 ## Hozirgi holat
 Kod avtomatik testlardan o‘tgan. Ammo Google Cloud OAuth, Supabase email shablonlari/SMTP va SQL migratsiyalari hisobingizda to‘g‘ri sozlanmaguncha platformani 100% ishlaydi deb bo‘lmaydi. Ushbu tashqi sozlamalar ZIP ichidagi kod orqali avtomatik o‘zgarmaydi. Real email va Google kirishi, real to‘lov, yuklama va barcha sahifalar bo‘yicha to‘liq end-to-end sinov bajarilmagan.
+
+## Oxirgi Auth tuzatishi
+Kirish email va 6 xonali OTP orqali bajariladi. Kirishda yangi hisob avtomatik yaratilmaydi; yangi foydalanuvchi avval ro‘yxatdan o‘tadi. Bo‘sh muvaffaqiyatli REST javoblari JSON sifatida o‘qilmaydi. 16 ta test o‘tgan.
+
+### Hali Dashboard’da bajarish kerak
+Authentication → URL Configuration → Site URL:
+`https://fermertoga-ai.keencrane4096.chatgpt.site`
+Redirect URLs ichiga:
+`https://fermertoga-ai.keencrane4096.chatgpt.site/`
+ni qo‘shing. Boshqa ishlayotgan production domenlarini saqlang. Localhost faqat kompyuteringizda server ishga tushganida ishlaydi; production uchun Site URL localhost bo‘lmasin.
+Authentication → Email Templates’da uchta shablonni yangilang:
+- Confirm signup ← supabase/email-templates/confirm-signup.html
+- Magic Link ← supabase/email-templates/magic-link.html
+- Reset Password ← supabase/email-templates/reset-password.html
+Har biri uchun Save bosing. Email provider sozlamasida OTP Length=6, Expiration=600 seconds tanlang.
+Bu sozlamalarni SQL Editor’da bajarib bo‘lmaydi. Google’dan localhostga qaytish — Site URL yoki Redirect URLs allowlist muammosi; Authorized redirect URIs’da esa Supabase callback manzili turadi.
+Dashboard kirishi yakunlanmagani uchun ushbu shablonlar serverga hali qo‘llanmadi. Paketdagi kod xat shabloni o‘rnini bosa olmaydi. Real email yetkazilishi va Google callback hali qayta tekshirilmagan.
