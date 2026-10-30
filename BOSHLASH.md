@@ -59,3 +59,6 @@ Authentication → Email Templates’da uchta shablonni yangilang:
 Har biri uchun Save bosing. Email provider sozlamasida OTP Length=6, Expiration=600 seconds tanlang.
 Bu sozlamalarni SQL Editor’da bajarib bo‘lmaydi. Google’dan localhostga qaytish — Site URL yoki Redirect URLs allowlist muammosi; Authorized redirect URIs’da esa Supabase callback manzili turadi.
 Dashboard kirishi yakunlanmagani uchun ushbu shablonlar serverga hali qo‘llanmadi. Paketdagi kod xat shabloni o‘rnini bosa olmaydi. Real email yetkazilishi va Google callback hali qayta tekshirilmagan.
+
+## OTP uzunligi yangilanishi
+Ro‘yxatdan o‘tish, kirish va parol tiklash maydonlari endi 6–8 raqamli kodni to‘liq qabul qiladi. Supabase 8 raqam yuborsa uni qisqartirmang. 17 ta test o‘tgan. Render’da yangi kodni deploy qiling.

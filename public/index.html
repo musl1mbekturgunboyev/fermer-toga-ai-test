@@ -173,7 +173,7 @@ function authView(reg){
     return pubTop()+`<main class="wrap" style="max-width:460px;padding-top:40px">
       ${!S.recState?`
         <h1 style="font-size:2rem">Parolni tiklash</h1>
-        <p class="muted">Emailingizga 6 xonali parol tiklash kodi yuboriladi. Telefon uchun SMS xizmati yoqilgan bo‘lishi kerak.</p>
+        <p class="muted">Emailingizga 6–8 xonali parol tiklash kodi yuboriladi. Telefon uchun SMS xizmati yoqilgan bo‘lishi kerak.</p>
         <form id="rf_send" novalidate>
           <div class="field"><label for="rec_val">Telefon yoki Gmail</label><input id="rec_val" placeholder="+998 90 123 45 67 yoki email@gmail.com" required autocomplete="username"></div>
           <div id="rec_er" role="alert" style="color:var(--bad);margin-bottom:10px"></div>
@@ -182,9 +182,9 @@ function authView(reg){
         </form>
       `:`
         <h1 style="font-size:2rem">Yangi parol o‘rnatish</h1>
-        <p class="muted">${S.recState.linkVerified?`<b>${esc(S.recState.target)}</b> tasdiqlandi. Endi yangi parolni kiriting:`:`<b>${esc(S.recState.target)}</b> manziliga yuborilgan yangi xatdagi 6 xonali kodni va yangi parolingizni kiriting:`}</p>
+        <p class="muted">${S.recState.linkVerified?`<b>${esc(S.recState.target)}</b> tasdiqlandi. Endi yangi parolni kiriting:`:`<b>${esc(S.recState.target)}</b> manziliga yuborilgan yangi xatdagi 6–8 xonali kodni va yangi parolingizni kiriting:`}</p>
         <form id="rf_verify" novalidate>
-          ${S.recState.linkVerified?'':`<div class="field"><label for="rec_code">6 xonali tasdiqlash kodi</label><input id="rec_code" type="text" maxlength="6" inputmode="numeric" placeholder="123456" autocomplete="one-time-code" style="letter-spacing:6px;font-size:1.6rem;text-align:center;font-weight:800;padding:8px" required></div>`}
+          ${S.recState.linkVerified?'':`<div class="field"><label for="rec_code">6–8 xonali tasdiqlash kodi</label><input id="rec_code" type="text" maxlength="8" inputmode="numeric" placeholder="12345678" autocomplete="one-time-code" style="letter-spacing:6px;font-size:1.6rem;text-align:center;font-weight:800;padding:8px" required></div>`}
           <div class="field"><label for="rec_new_pw">Yangi parol (kamida 8 belgi)</label><input id="rec_new_pw" type="password" minlength="8" placeholder="••••••••" required></div>
           <div id="rec_er" role="alert" style="color:var(--bad);margin-bottom:10px"></div>
           <button class="btn" style="width:100%">Parolni yangilash va kirish</button>
@@ -198,10 +198,10 @@ function authView(reg){
       <div class="card" style="padding:28px 22px;border:1.5px solid var(--g);text-align:center">
         <div style="font-size:3rem;margin-bottom:8px">✉️</div>
         <h2 style="font-size:1.6rem;margin-bottom:8px">Email kodingizni kiriting</h2>
-        <p class="muted" style="margin-bottom:18px"><b>${esc(S.authOtp.email)}</b> manziliga yuborilgan yangi xatdagi 6 xonali kodni kiriting. Kodni hech kimga bermang:</p>
+        <p class="muted" style="margin-bottom:18px"><b>${esc(S.authOtp.email)}</b> manziliga yuborilgan yangi xatdagi 6–8 xonali kodni kiriting. Kodni hech kimga bermang:</p>
         <div class="field" style="max-width:260px;margin:0 auto 14px">
-          <label for="otp_code" style="text-align:center">6 xonali kod</label>
-          <input id="otp_code" type="text" maxlength="6" inputmode="numeric" placeholder="123456" autocomplete="one-time-code" style="letter-spacing:8px;font-size:1.8rem;text-align:center;font-weight:800;padding:8px">
+          <label for="otp_code" style="text-align:center">6–8 xonali kod</label>
+          <input id="otp_code" type="text" maxlength="8" inputmode="numeric" placeholder="12345678" autocomplete="one-time-code" style="letter-spacing:8px;font-size:1.8rem;text-align:center;font-weight:800;padding:8px">
         </div>
         <div id="otp_er" role="alert" style="color:var(--bad);margin-bottom:12px;font-size:.9rem"></div>
         <button type="button" class="btn" id="btn_verify_otp" style="width:100%;min-height:48px;font-size:1rem;margin-bottom:8px">Kodni tasdiqlash va kirish</button>
@@ -215,7 +215,7 @@ function authView(reg){
   }
   return pubTop()+`<main class="wrap" style="max-width:460px;padding-top:40px"><h1 style="font-size:2rem">${reg?'Ro‘yxatdan o‘tish':'Kirish'}</h1><form id="af" novalidate>
 ${reg?`<div class="field"><label for="n">To‘liq ism</label><input id="n" required autocomplete="name"></div><div class="field"><label for="p">Telefon</label><input id="p" type="tel" placeholder="+998 90 123 45 67"></div>`:''}
-<div class="field"><label for="e">Email</label><input id="e" type="email" required autocomplete="email"></div>${reg?'<div class="field"><label for="pw">Parol</label><input id="pw" type="password" minlength="8" required autocomplete="new-password"></div>':'<p class="muted">Kirish uchun emailingizga 6 xonali kod yuboriladi.</p>'}
+<div class="field"><label for="e">Email</label><input id="e" type="email" required autocomplete="email"></div>${reg?'<div class="field"><label for="pw">Parol</label><input id="pw" type="password" minlength="8" required autocomplete="new-password"></div>':'<p class="muted">Kirish uchun emailingizga 6–8 xonali kod yuboriladi.</p>'}
 ${reg?`<div class="field"><label for="r">Viloyat</label><select id="r">${["Toshkent","Samarqand","Farg‘ona","Andijon","Namangan","Buxoro","Xorazm","Qashqadaryo","Surxondaryo","Jizzax","Sirdaryo","Navoiy","Qoraqalpog‘iston"].map(x=>`<option>${x}</option>`).join('')}</select></div>`:''}
 <div id="er" role="alert" style="color:var(--bad);margin-bottom:10px"></div>
 <button class="btn" style="width:100%">${reg?'Hisob yaratish':'Kirish kodini yuborish'}</button>
@@ -310,7 +310,7 @@ function bind(h){
       const code=($('#otp_code')||{}).value.trim();
       const er=$('#otp_er');
       if(er)er.textContent='';
-      if(!/^\d{6}$/.test(code)){if(er)er.textContent='Iltimos, 6 xonali kodni kiriting.';return;}
+      if(!isOtpCode(code)){if(er)er.textContent='Iltimos, 6–8 xonali kodni kiriting.';return;}
       btnVerifyOtp.disabled=true;btnVerifyOtp.textContent='Tekshirilmoqda…';
       try{
         const pending=S.authOtp;let r=await SB.auth.verifyOtp({email:pending.email,token:code,type:pending.mode==='login'?'email':'signup'});
@@ -385,7 +385,7 @@ function bind(h){
   if(rfVerify&&S.recState){
     rfVerify.onsubmit=async e=>{
       e.preventDefault();const code=(($('#rec_code')||{}).value||'').trim();const pw=($('#rec_new_pw')||{}).value;const er=$('#rec_er');if(er)er.textContent='';
-      if(!S.recState.linkVerified&&!/^\d{6}$/.test(code)){if(er)er.textContent='6 xonali kodni kiriting yoki pochtangizga borgan xatdagi havolani bosing.';return;}
+      if(!S.recState.linkVerified&&!isOtpCode(code)){if(er)er.textContent='6–8 xonali kodni kiriting yoki pochtangizga borgan xatdagi havolani bosing.';return;}
       if(!pw||pw.length<8){if(er)er.textContent='Yangi parol kamida 8 belgidan iborat bo‘lishi kerak.';return;}
       const bt=rfVerify.querySelector('button');bt.disabled=true;bt.textContent='Yangilanmoqda…';
       try{
@@ -543,6 +543,8 @@ document.addEventListener('change',e=>{if(e.target.id=="lg"||e.target.id=="lgp")
 window.addEventListener('hashchange',()=>{if(location.hash=="#how"){document.getElementById('how')?.scrollIntoView({behavior:'smooth'});return}render()});
 /* ---------- PRODUCTION: Supabase + /api (OpenAI serverda) ---------- */
 let SB=null;
+function isOtpCode(code){return /^\d{6,8}$/.test(code);}
+
 const recoveryCallbackAtLoad=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery';
 function showRecovery(session){if(!session||!session.user)return;delete S.authOtp;S.recState={target:session.user.email||'Email',isEmail:true,linkVerified:true};sessionStorage.removeItem('ft_recovery_pending');history.replaceState(null,'',location.pathname+location.search+'#/recovery');render();}
 
