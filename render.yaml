@@ -36,6 +36,10 @@ services:
         value: "off"
       - key: PAY_INFO
         sync: false
+      - key: PRICE_PRO
+        value: "49000"
+      - key: PRICE_FERMA
+        value: "149000"
       - key: RESEND_API_KEY
         sync: false
       - key: FROM_EMAIL

@@ -1,4 +1,4 @@
-const { auth, ins } = require('./_lib');
+const { auth, ins, checkAiQuota } = require('./_lib');
 const ai = require('./_ai');
 
 const LANG_MAP = {
@@ -13,7 +13,6 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
   const u = await auth(req, res, 'chat');
   if (!u) return;
-  ins('ai_usage', { user_id: u.id, kind: 'chat' });
 
   const b = req.body || {};
   const m = String(b.message || '').trim().slice(0, 2000);
@@ -22,6 +21,7 @@ module.exports = async (req, res) => {
     .filter(x => typeof x === 'string' && /^data:image\/(jpeg|png);base64,/.test(x) && x.length < 1500000);
 
   if (!m && !imgs.length) return res.status(400).json({ error: 'Savol yoki rasm kiriting' });
+  if (!(await checkAiQuota(res, u.id, 'chat'))) return;
 
   const lang = String(b.lang || 'uz').toLowerCase();
   const langPrompt = LANG_MAP[lang] || LANG_MAP.uz;
@@ -45,6 +45,7 @@ Guidelines:
       800,
       imgs.length ? imgs : undefined
     );
+    ins('ai_usage', { user_id: u.id, kind: 'chat' }); // limit faqat muvaffaqiyatli javob uchun hisoblanadi
     const raw = String(r.data || '');
     let schedule = [];
     const match = /<SCHEDULE>\s*(\[[\s\S]*?\])\s*<\/SCHEDULE>/i.exec(raw);
@@ -59,9 +60,9 @@ Guidelines:
       } catch (_) {}
     }
     const cleanText = raw.replace(/<SCHEDULE>[\s\S]*?<\/SCHEDULE>/gi, '').trim();
-    res.json({ text: cleanText, schedule, provider: r.provider });
+    res.json({ text: cleanText, schedule });
   } catch (e) {
     console.error('Chat xato:', e.message || e);
-    res.status(503).json({ error: ai.explain(e) });
+    res.status(503).json({ error: ai.publicMessage(e) });
   }
 };

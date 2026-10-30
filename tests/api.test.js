@@ -367,7 +367,8 @@ test('7. AI Scan & Chat endpoints: return structured data when AI succeeds, clea
     body: { type: 'Sigir', age: '3 yosh', images: [VALID_JPEG_B64] }
   }, sRes2);
   assert.equal(sRes2.statusCode, 503);
-  assert.match(sRes2.body.error, /kvota|limit/i);
+  assert.match(sRes2.body.error, /band|keyin/i);
+  assert.ok(!/gemini|openai|kalit|Render|Administrator/i.test(sRes2.body.error), 'mijozga texnik tafsilot chiqmasligi kerak');
   assert.ok(!sRes2.body.error.includes('AIzaSySecretKey999'));
 
   // Rate limit check on chat
@@ -460,16 +461,77 @@ test('10. Cybersecurity & Penetration audit: XSS prevention, Magic byte verifica
   // 10b. IP-based DDoS Rate Limiting
   const fakeReq = { headers: { 'x-forwarded-for': '185.220.101.5' }, socket: {} };
   lib.resetRateLimits();
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 240; i++) {
     const ok = lib.checkRateLimit('185.220.101.5', 'ip');
     assert.equal(ok, true);
   }
   const blocked = lib.checkRateLimit('185.220.101.5', 'ip');
-  assert.equal(blocked, false, 'IP rate limiter must block request #31');
+  assert.equal(blocked, false, 'IP rate limiter must block request #241');
 
   // 10c. Secret Masking against data exfiltration
   const secretDump = 'Exfiltrated secret key: AIzaSyD98234710293481092384 and sk-proj-12093810293810293';
   const maskedDump = ai.mask(secretDump);
   assert.ok(!maskedDump.includes('AIzaSyD98234710293481092384'));
   assert.ok(!maskedDump.includes('sk-proj-12093810293810293'));
+});
+
+
+test('11. Tarif limitlari: Bepul skan limiti tugasa 403, soxta "plan" ga ishonilmaydi, AI tashxis faqat admin', async () => {
+  resetEnv();
+  delete process.env.OPENAI_API_KEY;
+  process.env.AI_PRIORITY = 'gemini';
+  let used = 5;           // Bepul: oyiga 5 skan
+  let subs = [];
+  let role = 'user';
+  global.fetch = async (url) => {
+    if (url.endsWith('/auth/v1/user')) return jsonResponse(200, { id: '55555555-5555-5555-5555-555555555555' });
+    if (url.includes('/rest/v1/subscriptions')) return jsonResponse(200, subs);
+    if (url.includes('/rest/v1/profiles?select=role')) return jsonResponse(200, [{ role }]);
+    if (url.includes('/rest/v1/ai_usage?select=id')) return jsonResponse(200, [], { 'content-range': '0-0/' + used });
+    if (url.includes(':generateContent')) {
+      return jsonResponse(200, { candidates: [{ content: { parts: [{ text: JSON.stringify({ species: 'Sigir', weight: '400-440 kg', confidence: 80 }) }] } }] });
+    }
+    return jsonResponse(200, {});
+  };
+  const body = { type: 'Sigir', images: [VALID_JPEG_B64] };
+  const r1 = mockRes();
+  await scanHandler({ method: 'POST', headers: { authorization: 'Bearer t' }, body: { ...body, plan: 'Ferma' } }, r1);
+  assert.equal(r1.statusCode, 403);
+  assert.equal(r1.body.code, 'limit');
+
+  // Pro tarifda limit 100 — o‘sha sarf bilan o‘tadi
+  subs = [{ plan: 'Pro', status: 'active', period_end: new Date(Date.now() + 864e5).toISOString() }];
+  const r2 = mockRes();
+  await scanHandler({ method: 'POST', headers: { authorization: 'Bearer t' }, body }, r2);
+  assert.equal(r2.statusCode, 200);
+  assert.equal(r2.body.weight_kg, 420);
+  assert.equal(r2.body.provider, undefined);
+
+  // Muddati tugagan Pro -> yana Bepul
+  subs = [{ plan: 'Pro', status: 'active', period_end: new Date(Date.now() - 864e5).toISOString() }];
+  const r3 = mockRes();
+  await scanHandler({ method: 'POST', headers: { authorization: 'Bearer t' }, body }, r3);
+  assert.equal(r3.statusCode, 403);
+
+  // AI tashxis (/api/ai-test): oddiy foydalanuvchiga 403
+  const aiTest = require('../api/ai-test');
+  const r4 = mockRes();
+  await aiTest({ method: 'GET', url: '/api/ai-test', headers: { authorization: 'Bearer t' } }, r4);
+  assert.equal(r4.statusCode, 403);
+});
+
+test('12. Vazn aniqlanmasa o‘ylab topilgan raqam berilmaydi; chorva bo‘lmagan rasm rad etiladi', async () => {
+  resetEnv();
+  delete process.env.OPENAI_API_KEY;
+  process.env.AI_PRIORITY = 'gemini';
+  let out = { is_farm_animal: false };
+  global.fetch = async (url) => {
+    if (url.endsWith('/auth/v1/user')) return jsonResponse(200, { id: '66666666-6666-6666-6666-666666666666' });
+    if (url.includes(':generateContent')) return jsonResponse(200, { candidates: [{ content: { parts: [{ text: JSON.stringify(out) }] } }] });
+    return jsonResponse(200, {});
+  };
+  const call = async () => { const r = mockRes(); await scanHandler({ method: 'POST', headers: { authorization: 'Bearer t' }, body: { type: 'Sigir', images: [VALID_JPEG_B64] } }, r); return r; };
+  assert.equal((await call()).statusCode, 422);
+  out = { is_farm_animal: true, species: 'Sigir' }; // vazn yo‘q
+  assert.equal((await call()).statusCode, 422);
 });

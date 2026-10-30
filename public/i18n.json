@@ -856,5 +856,215 @@
     "en": "View livestock market",
     "kk": "Мал базарын көру",
     "ky": "Мал базарын көрүү"
+  },
+  "AI natijalari taxminiy bo‘lib, veterinariya tashxisi emas.": {
+    "ru": "Результаты ИИ приблизительны и не являются ветеринарным диагнозом.",
+    "en": "AI results are approximate and are not a veterinary diagnosis.",
+    "kk": "ЖИ нәтижелері шамамен берілген, ветеринарлық диагноз емес.",
+    "ky": "ЖИ жыйынтыктары болжолдуу, ветеринардык диагноз эмес."
+  },
+  "Profilni tahrirlash": {
+    "ru": "Редактировать профиль",
+    "en": "Edit profile",
+    "kk": "Профильді өңдеу",
+    "ky": "Профилди түзөтүү"
+  },
+  "To‘liq ism": {
+    "ru": "Полное имя",
+    "en": "Full name",
+    "kk": "Толық аты-жөні",
+    "ky": "Толук аты-жөнү"
+  },
+  "Parolni o‘zgartirish": {
+    "ru": "Сменить пароль",
+    "en": "Change password",
+    "kk": "Құпиясөзді өзгерту",
+    "ky": "Сырсөздү өзгөртүү"
+  },
+  "Yangi parol (kamida 8 belgi)": {
+    "ru": "Новый пароль (минимум 8 символов)",
+    "en": "New password (min. 8 characters)",
+    "kk": "Жаңа құпиясөз (кемінде 8 таңба)",
+    "ky": "Жаңы сырсөз (кеминде 8 белги)"
+  },
+  "Yangi parolni takrorlang": {
+    "ru": "Повторите новый пароль",
+    "en": "Repeat new password",
+    "kk": "Жаңа құпиясөзді қайталаңыз",
+    "ky": "Жаңы сырсөздү кайталаңыз"
+  },
+  "Parolni yangilash": {
+    "ru": "Обновить пароль",
+    "en": "Update password",
+    "kk": "Құпиясөзді жаңарту",
+    "ky": "Сырсөздү жаңыртуу"
+  },
+  "↩ Profildan chiqish": {
+    "ru": "↩ Выйти из профиля",
+    "en": "↩ Log out",
+    "kk": "↩ Профильден шығу",
+    "ky": "↩ Профилден чыгуу"
+  },
+  "Profilni o‘chirish": {
+    "ru": "Удалить профиль",
+    "en": "Delete profile",
+    "kk": "Профильді жою",
+    "ky": "Профилди өчүрүү"
+  },
+  "Profildan chiqishingiz yoki hisobni butunlay o‘chirishingiz mumkin. O‘chirilganda barcha ma’lumotlar qaytarib bo‘lmaydigan tarzda yo‘qoladi.": {
+    "ru": "Вы можете выйти из профиля или полностью удалить аккаунт. При удалении все данные безвозвратно исчезают.",
+    "en": "You can log out or delete your account completely. When deleted, all data is lost permanently.",
+    "kk": "Профильден шығуға немесе аккаунтты толық жоюға болады. Жойылғанда барлық деректер қайтарылмайды.",
+    "ky": "Профилден чыгууга же аккаунтту толук өчүрүүгө болот. Өчүрүлгөндө бардык маалымат кайра калыбына келбейт."
+  },
+  "Joriy tarif": {
+    "ru": "Текущий тариф",
+    "en": "Current plan",
+    "kk": "Ағымдағы тариф",
+    "ky": "Учурдагы тариф"
+  },
+  "Faollashtirish": {
+    "ru": "Активировать",
+    "en": "Activate",
+    "kk": "Іске қосу",
+    "ky": "Иштетүү"
+  },
+  "Muddatni uzaytirish": {
+    "ru": "Продлить",
+    "en": "Extend",
+    "kk": "Мерзімін ұзарту",
+    "ky": "Мөөнөтүн узартуу"
+  },
+  "So‘rov yuborilgan": {
+    "ru": "Запрос отправлен",
+    "en": "Request sent",
+    "kk": "Сұраныс жіберілді",
+    "ky": "Суроо жөнөтүлдү"
+  },
+  "Joriy oy sarfi:": {
+    "ru": "Расход за текущий месяц:",
+    "en": "Usage this month:",
+    "kk": "Осы айдағы шығын:",
+    "ky": "Ушул айдагы пайдалануу:"
+  },
+  "AI yordamchi savollari": {
+    "ru": "Вопросы ИИ-помощнику",
+    "en": "AI assistant questions",
+    "kk": "ЖИ көмекші сұрақтары",
+    "ky": "ЖИ жардамчы суроолору"
+  },
+  "Faol e’lonlar": {
+    "ru": "Активные объявления",
+    "en": "Active listings",
+    "kk": "Белсенді хабарландырулар",
+    "ky": "Активдүү жарыялар"
+  },
+  "Pullik tarif muddati tugagach avtomatik Bepulga qaytadi.": {
+    "ru": "После окончания платного тарифа вы автоматически вернётесь на Бесплатный.",
+    "en": "After a paid plan ends, you automatically return to Free.",
+    "kk": "Ақылы тариф аяқталғанда автоматты түрде Тегінге оралады.",
+    "ky": "Акы төлөнүүчү тариф бүткөндө автоматтык түрдө Акысызга кайтат."
+  },
+  "To‘lov karta orqali amalga oshiriladi; to‘lov tasdiqlangach tarif administrator tomonidan faollashtiriladi.": {
+    "ru": "Оплата картой; после подтверждения оплаты тариф активирует администратор.",
+    "en": "Payment is by card; after payment is confirmed the administrator activates the plan.",
+    "kk": "Төлем карта арқылы; төлем расталғаннан кейін тарифті әкімші іске қосады.",
+    "ky": "Төлөм карта аркылуу; төлөм ырасталгандан кийин тарифти администратор иштетет."
+  },
+  "Pro yoki Ferma uchun «Faollashtirish» tugmasini bosing, to‘lov rekvizitlari ko‘rsatiladi. To‘lov tasdiqlangach administrator tarifni yoqadi.": {
+    "ru": "Для Pro или Ферма нажмите «Активировать» — появятся реквизиты оплаты. После подтверждения оплаты администратор включит тариф.",
+    "en": "For Pro or Ferma press “Activate” to see payment details. After payment is confirmed the administrator enables the plan.",
+    "kk": "Pro немесе Ferma үшін «Іске қосу» түймесін басыңыз — төлем деректемелері көрсетіледі. Төлем расталғаннан кейін әкімші тарифті қосады.",
+    "ky": "Pro же Ferma үчүн «Иштетүү» баскычын басыңыз — төлөм реквизиттери көрсөтүлөт. Төлөм ырасталгандан кийин администратор тарифти кошот."
+  },
+  "To‘lovdan keyin administrator tarifingizni faollashtiradi.": {
+    "ru": "После оплаты администратор активирует ваш тариф.",
+    "en": "After payment the administrator will activate your plan.",
+    "kk": "Төлемнен кейін әкімші тарифіңізді іске қосады.",
+    "ky": "Төлөмдөн кийин администратор тарифиңизди иштетет."
+  },
+  "CSV va PDF hisobot Pro va Ferma tariflarida mavjud": {
+    "ru": "CSV и PDF отчёты доступны в тарифах Pro и Ferma",
+    "en": "CSV and PDF reports are available on Pro and Ferma plans",
+    "kk": "CSV және PDF есеп Pro және Ferma тарифтерінде бар",
+    "ky": "CSV жана PDF отчёт Pro жана Ferma тариф­терде бар"
+  },
+  "✨ AI Chorvachilik va Chorva Bozori platformasi": {
+    "ru": "✨ Платформа ИИ-животноводства и скотного рынка",
+    "en": "✨ AI livestock & livestock market platform",
+    "kk": "✨ ЖИ мал шаруашылығы және мал базары платформасы",
+    "ky": "✨ ЖИ мал чарбачылыгы жана мал базары платформасы"
+  },
+  "⚡ Tezkor AI tahlil": {
+    "ru": "⚡ Быстрый ИИ-анализ",
+    "en": "⚡ Fast AI analysis",
+    "kk": "⚡ Жылдам ЖИ талдау",
+    "ky": "⚡ Тез ЖИ талдоо"
+  },
+  "🛡️ HTTPS orqali himoyalangan": {
+    "ru": "🛡️ Защищено по HTTPS",
+    "en": "🛡️ Protected via HTTPS",
+    "kk": "🛡️ HTTPS арқылы қорғалған",
+    "ky": "🛡️ HTTPS аркылуу корголгон"
+  },
+  "🐄 Chorva Bozori": {
+    "ru": "🐄 Скотный рынок",
+    "en": "🐄 Livestock market",
+    "kk": "🐄 Мал базары",
+    "ky": "🐄 Мал базары"
+  },
+  "NAMUNA": {
+    "ru": "ПРИМЕР",
+    "en": "SAMPLE",
+    "kk": "ҮЛГІ",
+    "ky": "ҮЛГҮ"
+  },
+  "🟢 Namuna natija": {
+    "ru": "🟢 Пример результата",
+    "en": "🟢 Sample result",
+    "kk": "🟢 Нәтиже үлгісі",
+    "ky": "🟢 Жыйынтык үлгүсү"
+  },
+  "Namuna e’lon": {
+    "ru": "Пример объявления",
+    "en": "Sample listing",
+    "kk": "Хабарландыру үлгісі",
+    "ky": "Жарыя үлгүсү"
+  },
+  "Vazn dinamikasi": {
+    "ru": "Динамика веса",
+    "en": "Weight dynamics",
+    "kk": "Салмақ динамикасы",
+    "ky": "Салмак динамикасы"
+  },
+  "Oxirgi vazn o‘lchovlari (kg)": {
+    "ru": "Последние замеры веса (кг)",
+    "en": "Latest weight measurements (kg)",
+    "kk": "Соңғы салмақ өлшемдері (кг)",
+    "ky": "Акыркы салмак өлчөмдөрү (кг)"
+  },
+  "E’lon qabul qilindi: tekshiruvda": {
+    "ru": "Объявление принято: на проверке",
+    "en": "Listing received: under review",
+    "kk": "Хабарландыру қабылданды: тексерілуде",
+    "ky": "Жарыя кабыл алынды: текшерүүдө"
+  },
+  "Administrator tekshiruvidan so‘ng faollashadi.": {
+    "ru": "Станет активным после проверки администратором.",
+    "en": "Will become active after administrator review.",
+    "kk": "Әкімші тексергеннен кейін белсенді болады.",
+    "ky": "Администратор текшергенден кийин активдүү болот."
+  },
+  "Tarif so‘rovlari": {
+    "ru": "Запросы на тариф",
+    "en": "Plan requests",
+    "kk": "Тариф сұраныстары",
+    "ky": "Тариф суроолору"
+  },
+  "Tarif berish": {
+    "ru": "Выдать тариф",
+    "en": "Grant plan",
+    "kk": "Тариф беру",
+    "ky": "Тариф берүү"
   }
 }

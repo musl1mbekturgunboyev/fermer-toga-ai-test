@@ -5,7 +5,8 @@ try { webpush = require('web-push'); } catch (_) {}
 
 const tashkentNow = () => new Date(Date.now() + 5 * 36e5);
 const iso = d => new Date(Date.now() + d * 864e5 + 5 * 36e5).toISOString().slice(0, 10);
-const sent10MinCache = new Set(); // bir xil 10-minutlik eslatmani qayta-qayta yubormaslik uchun
+let sent10MinCache = new Set(); // bir xil 10-minutlik eslatmani qayta-qayta yubormaslik uchun
+let cacheDay = '';
 
 function is10MinBefore(timeStr, nowTashkent) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(timeStr || '').trim());
@@ -25,10 +26,11 @@ module.exports = async (req, res) => {
   const H = { apikey: K, Authorization: 'Bearer ' + K };
   const mode = (req.body && req.body.mode) || 'daily'; // 'daily' yoki '10min'
 
-  const rows = await (await fetch(U + '/rest/v1/app_state?select=user_id,json&limit=5000', { headers: H })).json().catch(() => []);
+  const rows = await (await fetch(U + '/rest/v1/app_state?select=user_id,rem_json&rem_n=gt.0&limit=5000', { headers: H })).json().catch(() => []);
   const subs = await (await fetch(U + '/rest/v1/push_subs?select=user_id,sub', { headers: H })).json().catch(() => []);
   const days = [iso(0), iso(1)];
   const today = iso(0);
+  if (cacheDay !== today) { cacheDay = today; sent10MinCache = new Set(); } // kesh har kuni tozalanadi (xotira o‘sib ketmasligi uchun)
   const nowT = tashkentNow();
 
   const vapid = ensureVapidKeys();
@@ -41,7 +43,7 @@ module.exports = async (req, res) => {
   let sent = 0;
   for (const r of (Array.isArray(rows) ? rows : [])) {
     let rems = [];
-    try { rems = JSON.parse(r.json).rem || []; } catch (_) {}
+    rems = Array.isArray(r.rem_json) ? r.rem_json : [];
     if (!rems.length) continue;
 
     let dueItems = [];
@@ -89,7 +91,11 @@ module.exports = async (req, res) => {
       for (const s of (Array.isArray(subs) ? subs : []).filter(x => x.user_id === r.user_id)) {
         try {
           await webpush.sendNotification(s.sub, JSON.stringify({ title: pushTitle, body }));
-        } catch (_) {}
+        } catch (err) {
+          if (err && (err.statusCode === 404 || err.statusCode === 410) && s.sub && s.sub.endpoint) {
+            fetch(U + '/rest/v1/push_subs?endpoint=eq.' + encodeURIComponent(s.sub.endpoint), { method: 'DELETE', headers: H }).catch(() => {});
+          }
+        }
       }
     }
     sent++;

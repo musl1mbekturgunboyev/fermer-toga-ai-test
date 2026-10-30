@@ -8,14 +8,18 @@ const LIMITS = {
   scan: { max: 8, windowMs: 60000 },
   chat: { max: 15, windowMs: 60000 },
   listings: { max: 6, windowMs: 60000 },
-  ip: { max: 30, windowMs: 60000 },
+  ip: { max: 240, windowMs: 60000 }, // bir wifi/operator ortidagi ko‘p foydalanuvchi uchun yetarli
   default: { max: 20, windowMs: 60000 }
 };
 
 // Client IP manzilini xavfsiz aniqlash
 function getClientIp(req) {
-  const xf = req.headers && req.headers['x-forwarded-for'];
-  if (xf) return xf.split(',')[0].trim();
+  const h = req.headers || {};
+  // Cloudflare / Render proksi o‘zi qo‘yadigan sarlavhalar (mijoz soxtalashtira olmaydi)
+  const trusted = h['cf-connecting-ip'] || h['true-client-ip'];
+  if (trusted) return String(trusted).trim();
+  const xf = h['x-forwarded-for'];
+  if (xf) return String(xf).split(',')[0].trim();
   return (req.socket && req.socket.remoteAddress) || '127.0.0.1';
 }
 
@@ -143,8 +147,59 @@ async function isAdmin(id) {
   }
 }
 
+const { PLANS, monthStartISO, pickPlan } = require('./_plans');
+
+function sbHeaders(extra) {
+  const k = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return { apikey: k, Authorization: 'Bearer ' + k, ...(extra || {}) };
+}
+
+// Foydalanuvchining amaldagi tarifi (faqat serverdagi `subscriptions` jadvalidan; mijoz yuborgan qiymatga ishonilmaydi)
+async function getPlan(userId) {
+  const k = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!k || !process.env.SUPABASE_URL) return { name: 'Bepul', until: null, limits: PLANS.Bepul };
+  try {
+    const r = await fetch(process.env.SUPABASE_URL + '/rest/v1/subscriptions?select=plan,period_end,status&status=eq.active&owner_id=eq.' + userId, { headers: sbHeaders() });
+    const rows = await r.json().catch(() => []);
+    const p = pickPlan(rows);
+    return { name: p.name, until: p.until, limits: PLANS[p.name] };
+  } catch (_) {
+    return { name: 'Bepul', until: null, limits: PLANS.Bepul };
+  }
+}
+
+// Joriy oyda nechta AI so‘rov ishlatilgan (kind: 'scan' | 'chat')
+async function usageCount(userId, kind) {
+  try {
+    const r = await fetch(
+      process.env.SUPABASE_URL + '/rest/v1/ai_usage?select=id&user_id=eq.' + userId + '&kind=eq.' + kind + '&at=gte.' + encodeURIComponent(monthStartISO()),
+      { headers: sbHeaders({ Prefer: 'count=exact', Range: '0-0' }) }
+    );
+    return +((r.headers.get('content-range') || '0/0').split('/')[1]) || 0;
+  } catch (_) {
+    return 0;
+  }
+}
+
+// AI so‘rovidan oldin: tarif limiti tugaganmi? Tugagan bo‘lsa javob yuboradi va false qaytaradi.
+async function checkAiQuota(res, userId, kind) {
+  const [plan, admin] = await Promise.all([getPlan(userId), isAdmin(userId)]);
+  if (admin) return true;
+  const max = kind === 'scan' ? plan.limits.scans : plan.limits.chats;
+  const used = await usageCount(userId, kind);
+  if (used >= max) {
+    const what = kind === 'scan' ? 'AI skan' : 'AI yordamchi';
+    res.status(403).json({
+      code: 'limit',
+      error: '«' + plan.name + '» tarifida oylik ' + what + ' limiti (' + max + ' ta) tugadi.' + (plan.name === 'Bepul' || plan.name === 'Pro' ? ' Limitni oshirish uchun tarifni yangilang.' : ' Keyingi oy limit yangilanadi.')
+    });
+    return false;
+  }
+  return true;
+}
+
 function resetRateLimits() {
   rl.clear();
 }
 
-module.exports = { auth, openai, SYS, ins, isAdmin, checkRateLimit, resetRateLimits, ensureVapidKeys, getClientIp };
+module.exports = { auth, openai, SYS, ins, isAdmin, checkRateLimit, resetRateLimits, ensureVapidKeys, getClientIp, getPlan, usageCount, checkAiQuota, sbHeaders };
