@@ -1,61 +1,46 @@
-const { auth, ins, isAdmin, sbHeaders } = require('./_lib');
+const { auth, ins } = require('./_lib');
 
 module.exports = async (req, res) => {
   const u = await auth(req, res, 'admin');
   if (!u) return;
-  if (!(await isAdmin(u.id))) {
+
+  const K = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const U = process.env.SUPABASE_URL;
+  const H = { apikey: K, Authorization: 'Bearer ' + K };
+  const q = (p, h) => fetch(U + '/rest/v1/' + p, { headers: { ...H, ...h } });
+
+  const pr = await (await q('profiles?select=role&id=eq.' + u.id)).json().catch(() => []);
+  if (!pr[0] || pr[0].role !== 'admin') {
     return res.status(403).json({ error: 'Sizda bu ma’lumotni ko‘rish huquqi yo‘q.' });
   }
 
-  const U = process.env.SUPABASE_URL;
-  const q = (p, h) => fetch(U + '/rest/v1/' + p, { headers: sbHeaders(h) });
-  const js = async p => { const r = await (await q(p)).json().catch(() => []); return Array.isArray(r) ? r : []; };
-  const cnt = async (p) => +((await q(p, { Prefer: 'count=exact', Range: '0-0' })).headers.get('content-range') || '0/0').split('/')[1] || 0;
+  const cnt = async p => +((await q(p, { Prefer: 'count=exact', Range: '0-0' })).headers.get('content-range') || '0/0').split('/')[1];
+  const st = await (await q('app_state?select=json&limit=5000')).json().catch(() => []);
+  let animals = 0;
+  const plans = {};
+  (Array.isArray(st) ? st : []).forEach(s => {
+    try {
+      const j = JSON.parse(s.json);
+      animals += (j.animals || []).length;
 
+    } catch (_) {}
+  });
+
+  const profiles=await (await q('profiles?select=id')).json();
+  const subs=await (await q('subscriptions?select=owner_id,plan&period_end=gt.'+new Date().toISOString()+'&status=eq.active')).json();
+  for(const user of Array.isArray(profiles)?profiles:[]){const active=(Array.isArray(subs)?subs:[]).filter(x=>x.owner_id===user.id);const plan=active.some(x=>x.plan==='Ferma')?'Ferma':active.some(x=>x.plan==='Pro')?'Pro':'Bepul';plans[plan]=(plans[plan]||0)+1;}
   const since = new Date(Date.now() - 30 * 864e5).toISOString();
-  const nowIso = new Date().toISOString();
   await ins('audit_logs', { actor_id: u.id, action: 'admin_stats_view' });
 
-  const [users, scans, chats, subs, st, recent, pending, audit, reqs] = await Promise.all([
-    cnt('profiles?select=id'),
-    cnt('ai_usage?select=id&kind=eq.scan&at=gte.' + since),
-    cnt('ai_usage?select=id&kind=eq.chat&at=gte.' + since),
-    js('subscriptions?select=owner_id,plan&status=eq.active&period_end=gt.' + encodeURIComponent(nowIso) + '&limit=5000'),
-    js('app_state?select=animals_n&limit=5000'),
-    js('profiles?select=full_name,region,created_at&order=created_at.desc&limit=8'),
-    js('listings?select=id,title,phone,price,status,photo_path,photos&status=in.(pending_payment,pending_review)&order=created_at.desc&limit=30'),
-    js('audit_logs?select=at,action&order=at.desc&limit=8'),
-    js('plan_requests?select=id,plan,created_at,user_id,profiles(full_name,phone)&status=eq.pending&order=created_at.asc&limit=30')
-  ]);
-
-  const animals = st.reduce((s, r) => s + (+r.animals_n || 0), 0);
-  const paidOwners = new Set();
-  const plans = {};
-  for (const s of subs) {
-    if (paidOwners.has(s.owner_id)) continue;
-    paidOwners.add(s.owner_id);
-    plans[s.plan] = (plans[s.plan] || 0) + 1;
-  }
-  plans.Bepul = Math.max(0, users - paidOwners.size);
-
-  // So‘rov yuborgan foydalanuvchilarning emaili (to‘lovni topish uchun qulay)
-  for (const r of reqs) {
-    try {
-      const e = await (await fetch(U + '/auth/v1/admin/users/' + r.user_id, { headers: sbHeaders() })).json();
-      r.email = e && e.email ? e.email : '';
-    } catch (_) { r.email = ''; }
-  }
-
   res.json({
-    users,
+    users: await cnt('profiles?select=id'),
     animals,
     plans,
-    scans,
-    chats,
-    recent,
+    scans: await cnt('ai_usage?select=id&kind=eq.scan&at=gte.' + since),
+    chats: await cnt('ai_usage?select=id&kind=eq.chat&at=gte.' + since),
+    recent: await (await q('profiles?select=id,full_name,region,created_at&order=created_at.desc&limit=8')).json().catch(() => []),
     ai: require('./_ai').status(),
-    pending,
-    audit,
-    plan_requests: reqs
+    pending: await (await q('listings?select=id,title,phone,price,status,photo_path,photos&status=in.(pending_payment,pending_review)&order=created_at.desc&limit=30')).json().catch(() => []),
+    audit: await (await q('audit_logs?select=at,action&order=at.desc&limit=8')).json().catch(() => [])
   });
 };

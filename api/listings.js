@@ -1,6 +1,6 @@
 // E’lon yaratish: rasm AI orqali tekshiriladi (jonli hayvonmi?), keyin serverning o‘zi saqlaydi.
 // Agar barcha AI provayderlar band yoki ishlamayotgan bo‘lsa, e’lon yo‘qolmaydi — 'pending_review' (admin tekshiruvi) holatida saqlanadi.
-const { auth, ins, getPlan } = require('./_lib');
+const { auth, ins } = require('./_lib');
 const ai = require('./_ai');
 
 const GROUP = {
@@ -81,16 +81,12 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Rasm formati noto‘g‘ri.' });
   }
 
-  const plan = await getPlan(u.id);
   const mine = await fetch(
     U + '/rest/v1/listings?select=id&status=in.(active,pending_payment,pending_review)&seller_id=eq.' + u.id,
     { headers: { ...H, Prefer: 'count=exact', Range: '0-0' } }
   );
-  if (+((mine.headers.get('content-range') || '0/0').split('/')[1]) >= plan.limits.listings) {
-    return res.status(429).json({
-      code: 'limit',
-      error: '«' + plan.name + '» tarifida bir vaqtda ' + plan.limits.listings + ' tagacha faol e’lon bo‘lishi mumkin.' + (plan.name !== 'Ferma' ? ' Ko‘proq e’lon uchun tarifni yangilang.' : '')
-    });
+  if (+((mine.headers.get('content-range') || '0/0').split('/')[1]) >= 50) {
+    return res.status(429).json({ error: 'E’lonlar soni chegaradan oshdi' });
   }
 
   let aiFailed = false;
@@ -125,7 +121,12 @@ module.exports = async (req, res) => {
     paths.push(p);
   }
 
-  const pro = plan.limits.freeListing;
+  const subRes = await fetch(
+    U + '/rest/v1/subscriptions?select=plan,period_end&status=eq.active&owner_id=eq.' + u.id,
+    { headers: H }
+  );
+  const sub = await subRes.json().catch(() => []);
+  const pro = Array.isArray(sub) && sub.some(x => ['Pro', 'Ferma'].includes(x.plan) && new Date(x.period_end) > new Date());
   const free = (process.env.LISTING_FEE_MODE || 'off') !== 'manual';
 
   let status = free || pro ? 'active' : 'pending_payment';
@@ -179,6 +180,6 @@ module.exports = async (req, res) => {
     id: j[0].id,
     status: row.status,
     pay: process.env.PAY_INFO || '',
-    ...(aiFailed ? { warning: 'E’loningiz moderatsiyaga yuborildi va administrator tekshiruvidan so‘ng bozorda ko‘rinadi.' } : {})
+    ...(aiFailed ? { warning: 'AI tekshiruvi vaqtincha band bo‘lgani uchun e’loningiz saqlandi va administrator tekshiruvidan so‘ng faollashtiriladi.' } : {})
   });
 };

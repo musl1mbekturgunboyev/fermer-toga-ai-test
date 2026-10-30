@@ -260,16 +260,6 @@ exports.explain = e => {
   return t + tag;
 };
 
-// MIJOZGA ko‘rsatiladigan xabar: texnik tafsilot (kalit, hudud, model, provayder nomi) hech qachon chiqmaydi.
-// To‘liq tafsilot faqat server logida va admin panelidagi tashxisda ko‘rinadi (explain()).
-exports.publicMessage = e => {
-  const m = mask((e && e.message) || '');
-  if (e && e.status === 400 && /rasm/i.test(m)) return 'Rasm formati noto‘g‘ri. JPG yoki PNG yuklang.';
-  if (/Bo‘sh javob|JSON/i.test(m)) return 'Rasm aniq emas yoki tahlil qilib bo‘lmadi. Yaxshi yoritilgan, aniqroq rasm bilan qayta urinib ko‘ring.';
-  if (isTimeout(e) || (e && e.status === 504)) return 'Javob kechikdi. Birozdan keyin qayta urinib ko‘ring.';
-  return 'Xizmat hozir band. Iltimos, 1–2 daqiqadan keyin qayta urinib ko‘ring.';
-};
-
 async function listGeminiModels() {
   const key = P.gemini.key();
   if (!key) return [];

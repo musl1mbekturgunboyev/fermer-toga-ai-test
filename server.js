@@ -1,5 +1,5 @@
 // Vercel'siz ishlaydigan oddiy Node serveri: public/ ni va /api/* ni xizmat qiladi.
-const http = require('http'), fs = require('fs'), path = require('path'), zlib = require('zlib'), crypto = require('crypto');
+const http = require('http'), fs = require('fs'), path = require('path');
 
 for (const f of ['.env', '.env.local']) {
   try {
@@ -12,8 +12,7 @@ for (const f of ['.env', '.env.local']) {
   } catch (_) {}
 }
 
-// CRON_SECRET berilmagan bo‘lsa, har ishga tushishda tasodifiy maxfiy kalit yaratiladi (ochiq/taxmin qilinadigan standart qiymat YO‘Q).
-if (!process.env.CRON_SECRET) process.env.CRON_SECRET = crypto.randomBytes(24).toString('hex');
+
 
 const T = {
   '.html': 'text/html; charset=utf-8',
@@ -21,13 +20,8 @@ const T = {
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
-  '.ico': 'image/x-icon',
-  '.webp': 'image/webp',
-  '.jpg': 'image/jpeg',
-  '.txt': 'text/plain; charset=utf-8'
+  '.ico': 'image/x-icon'
 };
-const COMPRESS = new Set(['.html', '.js', '.json', '.svg', '.txt']);
-const fileCache = new Map(); // yo‘l -> { mtime, raw, gz }
 
 const CSP = [
   "default-src 'self'",
@@ -37,7 +31,6 @@ const CSP = [
   "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co",
   "font-src 'self' data:",
   "worker-src 'self' blob:",
-  "object-src 'none'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'"
@@ -56,7 +49,6 @@ function createHandler() {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
-    res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
     res.setHeader('Content-Security-Policy', CSP);
 
     const u = new URL(req.url || '/', 'http://x');
@@ -110,37 +102,20 @@ function createHandler() {
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       return res.end('{}');
     }
-    // `pub + path.sep`: "public" bilan boshlanadigan qo‘shni papkalarga chiqib ketishni oldini oladi
-    if ((f !== pub && !f.startsWith(pub + path.sep)) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) {
+    if (!f.startsWith(pub + path.sep) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) {
       return res.status(404).end('Topilmadi');
     }
-    const ext = path.extname(f).toLowerCase();
-    const st = fs.statSync(f);
-    let c = fileCache.get(f);
-    if (!c || c.mtime !== st.mtimeMs) {
-      const raw = fs.readFileSync(f);
-      c = { mtime: st.mtimeMs, raw, gz: COMPRESS.has(ext) && raw.length > 1024 ? zlib.gzipSync(raw, { level: 9 }) : null };
-      fileCache.set(f, c);
-    }
-    res.setHeader('Content-Type', T[ext] || 'application/octet-stream');
-    // HTML va xizmat ishchisi (sw.js) doim yangi; rasm va tarjimalar kesh qilinadi
-    const noCache = ext === '.html' || path.basename(f) === 'sw.js';
-    res.setHeader('Cache-Control', noCache ? 'no-cache' : (ext === '.json' ? 'public, max-age=300' : 'public, max-age=86400'));
-    res.setHeader('Vary', 'Accept-Encoding');
-    const wantsGz = c.gz && /\bgzip\b/.test(String(req.headers['accept-encoding'] || ''));
-    const body = wantsGz ? c.gz : c.raw;
-    if (wantsGz) res.setHeader('Content-Encoding', 'gzip');
-    res.setHeader('Content-Length', body.length);
-    if (req.method === 'HEAD') return res.end();
-    res.end(body);
+    res.setHeader('Content-Type', T[path.extname(f)] || 'application/octet-stream');
+    fs.createReadStream(f).pipe(res);
   };
 }
 
 const server = http.createServer(createHandler());
 
 if (require.main === module) {
-  const port = process.env.PORT || 3000;
-  const host = process.env.HOST || (process.env.RENDER ? '0.0.0.0' : '127.0.0.1');
+  const pi=process.argv.indexOf('--port'),hi=process.argv.indexOf('--host');
+  const port = process.env.PORT || (pi>=0?process.argv[pi+1]:3000);
+  const host = (hi>=0?process.argv[hi+1]:null) || process.env.HOST || (process.env.RENDER ? '0.0.0.0' : '127.0.0.1');
   server.listen(port, host, () => console.log('Tayyor: http://localhost:' + port));
 
   // Kunlik eslatmalar: har kuni 04:00 UTC (09:00 Toshkent)
