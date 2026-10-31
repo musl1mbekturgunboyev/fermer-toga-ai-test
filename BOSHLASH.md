@@ -62,3 +62,13 @@ Dashboard kirishi yakunlanmagani uchun ushbu shablonlar serverga hali qo‘llanm
 
 ## OTP uzunligi yangilanishi
 Ro‘yxatdan o‘tish, kirish va parol tiklash maydonlari endi 6–8 raqamli kodni to‘liq qabul qiladi. Supabase 8 raqam yuborsa uni qisqartirmang. 17 ta test o‘tgan. Render’da yangi kodni deploy qiling.
+
+## 31-oktabr: bozor va sotuvchi profillari
+Til tanlash: bayroqlar va UZ/RU/EN/KZ/KG. E’lon rasmi bosilganda kattalashadi; ko‘p rasmlar strelka bilan almashadi. Narx kartochka va e’londa yirik. Ulashish oynasi: brauzer qo‘llasa rasm+havola, Telegram/WhatsApp havolasi, nusxalash va sayt havolasi yozilgan rasmni yuklab olish. Qabul qiluvchi e’lonni ko‘rish uchun hisobiga kirishi mumkin. Ba’zi ilovalar fayl yonidagi matnni yubormaydi, shuning uchun havola rasmning o‘ziga ham yoziladi.
+Profil → Ochiq sotuvchi profilingiz bo‘limida nik, ochiq nom va tavsifni o‘zgartiring. Sotuvchilar qidiruvida nikni yozing; profilga kirib e’lonlarini, e’lon ichida telefon va chatini ko‘ring. Email ochiq profilga chiqarilmaydi.
+`seller-profiles.sql` Fermer tog‘a test bazasida bajarildi; ayni bazada qayta bajarish kerak emas. Yangi boshqa bazaga shu faylni ham qo‘llang. Render uchun ZIPdagi kodlarni GitHubga joylab yangi deploy qiling.
+Brauzer OS skrinshotini ishonchli bloklay olmaydi. Katta rasmda sayt nomi suv belgisi, ulashiladigan rasmda esa narx va e’lon havolasi bor. Rasmlar hali ochiq Storage bucketda saqlanadi; suv belgisi nusxa olishga qarshi to‘liq himoya emas.
+20 ta avtomatik test o‘tdi. Baza handles tekshirildi, bosh sahifadagi til nomlari brauzerda ko‘rildi. Haqiqiy foydalanuvchi sessiyasi bilan barcha mobil ilovalarga rasm ulashish bo‘yicha to‘liq end-to-end tekshiruv bajarilmagan.
+
+## Tarif, rozilik va admin yangilanishi
+Yangi qoida: Bepul tarif uchun e’lonni faollashtirish 10 000 so‘m, faqat amaldagi Pro/Ferma bepul. LISTING_FEE_MODE=off endi bepul e’longa ruxsat bermaydi. Aloqa: https://t.me/Life_Uz1. Bank to‘lovi qo‘lda tasdiqlanadi. terms-consent.sql test bazasida bajarildi; boshqa yangi bazaga uni ham bajaring. 23 test o‘tdi. LEGAL_REVIEW.md ni o‘qing. Render’da shu ZIP bilan yangi deploy zarur.

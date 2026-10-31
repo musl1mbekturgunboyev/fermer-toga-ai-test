@@ -68,6 +68,7 @@ test('2. Provider failover: OpenAI 429 falls back to Gemini automatically', asyn
   resetEnv();
   const calls = [];
   global.fetch = async (url, opts) => {
+    if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     calls.push(url);
     if (url.includes('api.openai.com')) {
@@ -101,6 +102,7 @@ test('3. Model fallback & 503 backoff retry: 404 retired model + 503 transient o
 
   const modelAttempts = [];
   global.fetch = async (url) => {
+    if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     const m = /models\/([^:]+):generateContent/.exec(url);
     const model = m ? decodeURIComponent(m[1]) : 'unknown';
@@ -130,6 +132,7 @@ test('4. Timeout handling: per-attempt TimeoutError switches to backup model/pro
   process.env.AI_PRIORITY = 'openai,gemini';
 
   global.fetch = async (url) => {
+    if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     if (url.includes('api.openai.com')) {
       const err = new Error('The operation was aborted due to timeout');
@@ -159,6 +162,7 @@ test('5. Listing moderation: rejects non-animal photo (422), rejects species mis
   const insertedListings = [];
 
   global.fetch = async (url, opts = {}) => {
+    if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
     if (url.endsWith('/auth/v1/user')) {
       return jsonResponse(200, { id: '11111111-1111-1111-1111-111111111111', email: 'fermer@test.uz' });
     }
@@ -218,7 +222,7 @@ test('5. Listing moderation: rejects non-animal photo (422), rejects species mis
   const res3 = mockRes();
   await listingsHandler({ method: 'POST', headers: { authorization: 'Bearer tok' }, body: baseReqBody }, res3);
   assert.equal(res3.statusCode, 200);
-  assert.equal(res3.body.status, 'active');
+  assert.equal(res3.body.status, 'pending_payment');
   assert.equal(uploadedPaths.length, 1);
   assert.equal(insertedListings.length, 1);
 });
@@ -233,6 +237,7 @@ test('6. Fee modes & All-AI-down fallback: manual fee -> pending_payment, Pro su
   let patchedStatus = null;
 
   global.fetch = async (url, opts = {}) => {
+    if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
     if (url.endsWith('/auth/v1/user')) {
       return jsonResponse(200, { id: '11111111-1111-1111-1111-111111111111' });
     }
@@ -321,6 +326,7 @@ test('7. AI Scan & Chat endpoints: return structured data when AI succeeds, clea
 
   let aiDown = false;
   global.fetch = async (url) => {
+    if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     if (url.endsWith('/auth/v1/user')) {
       return jsonResponse(200, { id: '99999999-9999-9999-9999-999999999999' });
@@ -392,6 +398,7 @@ test('8. AI Chat with images + structured feeding schedule extraction + auto VAP
   process.env.AI_PRIORITY = 'gemini';
 
   global.fetch = async (url) => {
+    if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     if (url.endsWith('/auth/v1/user')) {
       return jsonResponse(200, { id: '77777777-7777-7777-7777-777777777777' });
@@ -483,14 +490,14 @@ test('10. Cybersecurity & Penetration audit: XSS prevention, Magic byte verifica
 test('11. Monthly quota denial and unavailable quota RPC fail closed',async()=>{
  resetEnv();const original=global.fetch;
  try{
- global.fetch=async url=>url.includes('/auth/v1/user')?jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'}):jsonResponse(200,false);
+ global.fetch=async url=>url.includes('/rest/v1/terms_acceptances')?jsonResponse(200,[{user_id:'accepted'}]):url.includes('/auth/v1/user')?jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'}):jsonResponse(200,false);
  let res=mockRes();await chatHandler({method:'POST',headers:{authorization:'Bearer token'},body:{message:'Salom'}},res);assert.equal(res.statusCode,429);
- lib.resetRateLimits();global.fetch=async url=>url.includes('/auth/v1/user')?jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'}):jsonResponse(404,{});
+ lib.resetRateLimits();global.fetch=async url=>url.includes('/rest/v1/terms_acceptances')?jsonResponse(200,[{user_id:'accepted'}]):url.includes('/auth/v1/user')?jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'}):jsonResponse(404,{});
  res=mockRes();await chatHandler({method:'POST',headers:{authorization:'Bearer token'},body:{message:'Salom'}},res);assert.equal(res.statusCode,503);
  }finally{global.fetch=original}
 });
 test('12. Non-admin cannot access AI diagnostics, including old query secret',async()=>{
- resetEnv();const original=global.fetch;global.fetch=async url=>url.includes('/auth/v1/user')?jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'}):jsonResponse(200,[{role:'user'}]);
+ resetEnv();const original=global.fetch;global.fetch=async url=>url.includes('/rest/v1/terms_acceptances')?jsonResponse(200,[{user_id:'accepted'}]):url.includes('/auth/v1/user')?jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'}):jsonResponse(200,[{role:'user'}]);
  try{const res=mockRes();await require('../api/ai-test')({method:'GET',url:'/api/ai-test?key=old',headers:{authorization:'Bearer token'}},res);assert.equal(res.statusCode,403)}finally{global.fetch=original}
 });
 
@@ -517,4 +524,28 @@ test('16. Email login requests a real Supabase OTP and never creates a new user'
 
 test('17. All email OTP forms accept complete 6–8 digit codes without truncation',()=>{
  const fs=require('node:fs'),vm=require('node:vm');const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');const definition=html.match(/function isOtpCode\(code\)\{[^\n]+\}/)[0];const ctx={};vm.createContext(ctx);vm.runInContext(definition,ctx);for(const s of ['123456','1234567','12345678'])assert.equal(ctx.isOtpCode(s),true);for(const s of ['12345','123456789','12345a',''])assert.equal(ctx.isOtpCode(s),false);assert.match(html,/id="otp_code"[^>]*maxlength="8"/);assert.match(html,/id="rec_code"[^>]*maxlength="8"/);assert.ok(!html.includes('maxlength="6"'));
+});
+
+test('18. Seller handles validate input, prevent duplicates, and only write authenticated owner',async()=>{
+ resetEnv();const handler=require('../api/sellers'),original=global.fetch;const uid='99999999-9999-9999-9999-999999999999';let writes=[];
+ global.fetch=async(url,opts={})=>{if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:uid});if(url.includes('nickname=eq.taken'))return jsonResponse(200,[{user_id:'other'}]);if(opts.method==='POST'){writes.push(JSON.parse(opts.body));return jsonResponse(200,[JSON.parse(opts.body)])}return jsonResponse(200,[])};
+ try{let res=mockRes();await handler({method:'POST',headers:{authorization:'Bearer token'},body:{action:'update',nickname:'bad,filter'}},res);assert.equal(res.statusCode,400);res=mockRes();await handler({method:'POST',headers:{authorization:'Bearer token'},body:{action:'update',nickname:'taken'}},res);assert.equal(res.statusCode,409);res=mockRes();await handler({method:'POST',headers:{authorization:'Bearer token'},body:{action:'update',nickname:'@My_Farm',display_name:'My Farm',bio:'Hello',user_id:'other'}},res);assert.equal(res.statusCode,200);assert.equal(writes[0].user_id,uid);assert.equal(writes[0].nickname,'my_farm');assert.equal(writes.length,1)}finally{global.fetch=original}
+});
+test('19. Shared listing and seller URLs retain persistent query identifiers',()=>{
+ const fs=require('node:fs'),vm=require('node:vm');const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');const code=html.match(/function listingUrl\(id\)\{[^\n]+\}/)[0]+'\n'+html.match(/function sellerUrl\(nick\)\{[^\n]+\}/)[0];const ctx={URL,location:{origin:'https://farm.example',pathname:'/'}};vm.createContext(ctx);vm.runInContext(code,ctx);assert.equal(new URL(ctx.listingUrl('abc')).searchParams.get('listing'),'abc');assert.equal(new URL(ctx.sellerUrl('my_farm')).searchParams.get('seller'),'my_farm');assert.ok(html.includes('🇺🇿 UZ'));assert.ok(html.includes('🇰🇬 KG'));
+});
+test('20. Listing cards render prominent price, zoom and share while escaping titles',()=>{
+ const fs=require('node:fs'),vm=require('node:vm');const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');const code=html.slice(html.indexOf('const lcard='),html.indexOf('const mnav='));let cached;const ctx={cacheListing:x=>cached=x,esc:x=>String(x||'').replaceAll('<','&lt;').replaceAll('>','&gt;'),money:x=>x+' so‘m',pic:()=>'<img alt="test">',first:()=>'/test.jpg',FB:''};vm.createContext(ctx);vm.runInContext(code+'\nthis.output=lcard({id:"test",title:"<script>",price:120000,region:"Namangan"},new Set())',ctx);assert.equal(cached.id,'test');assert.match(ctx.output,/class="market-price"/);assert.match(ctx.output,/data-zoom="test"/);assert.match(ctx.output,/data-share-listing="test"/);assert.ok(!ctx.output.includes('<script>'));
+});
+
+test('21. Operations refuse missing consent before AI or listing work',async()=>{
+ resetEnv();const original=global.fetch;let aiCalls=0;global.fetch=async url=>{if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'});if(url.includes('/terms_acceptances'))return jsonResponse(200,[]);aiCalls++;return jsonResponse(200,{})};
+ try{const res=mockRes();await chatHandler({method:'POST',headers:{authorization:'Bearer token'},body:{message:'hello'}},res);assert.equal(res.statusCode,403);assert.equal(res.body.code,'CONSENT_REQUIRED');assert.equal(aiCalls,0)}finally{global.fetch=original}
+});
+test('22. Consent acceptance requires both unchecked-by-default approvals and persists only once',async()=>{
+ resetEnv();const original=global.fetch;const handler=require('../api/consent');let saved=false,writes=0;global.fetch=async(url,opts={})=>{if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'});if(opts.method==='POST'){saved=true;writes++;return jsonResponse(201,null)}return jsonResponse(200,saved?[{user_id:'accepted',terms_version:'2026-10-31',privacy_version:'2026-10-31',accepted_at:'test'}]:[])};
+ try{let res=mockRes();await handler({method:'POST',headers:{authorization:'Bearer token'},body:{action:'accept',terms:true,privacy:false,version:'2026-10-31'}},res);assert.equal(res.statusCode,400);assert.equal(writes,0);for(let i=0;i<2;i++){res=mockRes();await handler({method:'POST',headers:{authorization:'Bearer token'},body:{action:'accept',terms:true,privacy:true,version:'2026-10-31'}},res);assert.equal(res.body.accepted,true)}assert.equal(writes,1)}finally{global.fetch=original}
+});
+test('23. Admin can revoke a paid plan through the existing atomic plan function',async()=>{
+ resetEnv();const original=global.fetch;let payload;global.fetch=async(url,opts={})=>{if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'});if(url.includes('/profiles?select=role'))return jsonResponse(200,[{role:'admin'}]);if(url.includes('/rpc/set_user_plan')){payload=JSON.parse(opts.body);return jsonResponse(204,null)}return jsonResponse(200,{})};try{const res=mockRes();await adminActionHandler({method:'POST',headers:{authorization:'Bearer token'},body:{action:'revoke_plan',user_id:'11111111-1111-1111-1111-111111111111'}},res);assert.equal(res.statusCode,200);assert.equal(payload.p_plan,'Bepul');assert.equal(payload.p_user,'11111111-1111-1111-1111-111111111111')}finally{global.fetch=original}
 });

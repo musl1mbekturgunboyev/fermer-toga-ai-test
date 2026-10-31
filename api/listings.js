@@ -127,9 +127,9 @@ module.exports = async (req, res) => {
   );
   const sub = await subRes.json().catch(() => []);
   const pro = Array.isArray(sub) && sub.some(x => ['Pro', 'Ferma'].includes(x.plan) && new Date(x.period_end) > new Date());
-  const free = (process.env.LISTING_FEE_MODE || 'off') !== 'manual';
 
-  let status = free || pro ? 'active' : 'pending_payment';
+
+  let status = pro ? 'active' : 'pending_payment';
   if (aiFailed && status === 'active') {
     status = 'pending_review';
   }
@@ -179,7 +179,8 @@ module.exports = async (req, res) => {
   res.json({
     id: j[0].id,
     status: row.status,
-    pay: process.env.PAY_INFO || '',
+    pay: 'To‘lovni Telegram orqali @Life_Uz1 bilan kelishing. Administrator tasdiqlagach e’lon faollashadi.',
+    fee_amount: pro ? 0 : 10000,
     ...(aiFailed ? { warning: 'AI tekshiruvi vaqtincha band bo‘lgani uchun e’loningiz saqlandi va administrator tekshiruvidan so‘ng faollashtiriladi.' } : {})
   });
 };

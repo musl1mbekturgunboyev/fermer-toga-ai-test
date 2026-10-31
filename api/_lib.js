@@ -101,6 +101,10 @@ async function auth(req, res, kind = 'default') {
     res.status(429).json({ error: 'Juda ko‘p so‘rov. Biroz kuting.' });
     return null;
   }
+  if(['scan','chat','listings'].includes(kind)){
+    try{const rows=await require('./_billing').db('terms_acceptances?select=user_id&user_id=eq.'+u.id);if(!Array.isArray(rows)||!rows.length){res.status(403).json({error:'Avval foydalanish shartlari va maxfiylik siyosatiga rozilik bering.',code:'CONSENT_REQUIRED'});return null;}}
+    catch(e){res.status(503).json({error:'Rozilik holatini tekshirib bo‘lmadi'});return null;}
+  }
   return u;
 }
 

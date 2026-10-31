@@ -26,13 +26,14 @@ module.exports = async (req, res) => {
     } catch (_) {}
   });
 
-  const profiles=await (await q('profiles?select=id')).json();
-  const subs=await (await q('subscriptions?select=owner_id,plan&period_end=gt.'+new Date().toISOString()+'&status=eq.active')).json();
+  const profiles=await (await q('profiles?select=id,full_name')).json();
+  const subs=await (await q('subscriptions?select=id,owner_id,plan,period_end&period_end=gt.'+new Date().toISOString()+'&status=eq.active')).json();
   for(const user of Array.isArray(profiles)?profiles:[]){const active=(Array.isArray(subs)?subs:[]).filter(x=>x.owner_id===user.id);const plan=active.some(x=>x.plan==='Ferma')?'Ferma':active.some(x=>x.plan==='Pro')?'Pro':'Bepul';plans[plan]=(plans[plan]||0)+1;}
   const since = new Date(Date.now() - 30 * 864e5).toISOString();
   await ins('audit_logs', { actor_id: u.id, action: 'admin_stats_view' });
 
   res.json({
+    activePaid: (Array.isArray(subs)?subs:[]).filter(s=>['Pro','Ferma'].includes(s.plan)).map(s=>({...s,full_name:(Array.isArray(profiles)?profiles:[]).find(p=>p.id===s.owner_id)?.full_name||'Foydalanuvchi'})),
     users: await cnt('profiles?select=id'),
     animals,
     plans,
