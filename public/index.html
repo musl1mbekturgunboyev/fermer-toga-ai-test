@@ -648,7 +648,7 @@ async function onSession(se){const id=se.user.id;if(S.uid===id&&DB)return;fresh(
   const st=await SB.from('app_state').select('json').eq('user_id',id).maybeSingle();
   if(st.data&&st.data.json){try{const j=JSON.parse(st.data.json);KEYS.forEach(k=>{if(j[k]!==undefined)S[k]=j[k]})}catch(_){}}
   const billing=await api('/api/account',{});S.plan=billing.plan;S.limits=billing.limits;DB={set:async({json})=>{await api('/api/state',{json})}};last=JSON.stringify(Object.fromEntries(KEYS.map(k=>[k,S[k]])));
-  const consent=await api('/api/consent',{});S.consentRequired=!consent.accepted;if(S.consentRequired){location.hash='#/consent';render();return;}
+  const consent=await api('/api/consent',{});S.consentRequired=!consent.accepted;const sharedEntry=new URLSearchParams(location.search);if(['','#/'].includes(location.hash)&&!sharedEntry.has('listing')&&!sharedEntry.has('seller')&&!sharedEntry.has('code')&&!sharedEntry.has('token_hash')){render();return;}if(S.consentRequired){location.hash='#/consent';render();return;}
   const shared=new URLSearchParams(location.search);if(shared.get('listing')){S.mcur=shared.get('listing');location.hash='#/market-view';render();return}if(shared.get('seller')){S.sellerNick=shared.get('seller');location.hash='#/seller';render();return}
   const isNew=!(st.data&&st.data.json);if(isNew)S.ob={s:0,a:{}};if(['','#/','#/login','#/register'].includes(location.hash))location.hash=isNew?'#/onboarding':'#/app';else render()}
 function authErr(m){const k=/after (\d+) seconds/.exec(m);if(k)return 'Xavfsizlik uchun '+k[1]+' soniyadan keyin qayta urinib ko‘ring. Ro‘yxatdan o‘tgan bo‘lsangiz, emailingizdagi xatni (Spam papkasini ham) tekshiring.';
@@ -866,6 +866,9 @@ document.addEventListener('submit',async e=>{if(e.target.id!=='consent-form')ret
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-revoke-plan]');if(!b)return;if(!confirm('Bu hisobning pullik tarifini bekor qilib Bepulga o‘tkazasizmi?'))return;b.disabled=true;try{await api('/api/admin-action',{action:'revoke_plan',user_id:b.dataset.revokePlan});toast('Tarif bekor qilindi');render()}catch(x){toast(x.message);b.disabled=false}});
 
 window.addEventListener('error',e=>{if(!/ResizeObserver/.test(e.message||''))toast('Xato: '+(e.message||'noma’lum'))});window.addEventListener('unhandledrejection',e=>toast('Xato: '+((e.reason&&e.reason.message)||e.reason)));
+// A saved auth-form fragment must not skip the introduction on a fresh visit.
+function publicEntryUrl(href){const u=new URL(href);const callback=['code','token_hash','access_token','error','error_description','type'].some(k=>u.searchParams.has(k));if(!callback&&['#/register','#/login'].includes(u.hash)&&!u.searchParams.has('listing')&&!u.searchParams.has('seller')){u.hash='#/';}return u.href;}
+const publicEntry=publicEntryUrl(location.href);if(publicEntry!==location.href)history.replaceState(null,'',publicEntry);
 const sharedAtLoad=new URLSearchParams(location.search);if(sharedAtLoad.has('listing'))S.mcur=sharedAtLoad.get('listing');if(sharedAtLoad.has('seller'))S.sellerNick=sharedAtLoad.get('seller');render();initApp();
 </script>
 </body>
