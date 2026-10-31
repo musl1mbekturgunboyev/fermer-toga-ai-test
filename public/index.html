@@ -321,26 +321,10 @@ function bind(h){
   
   const btnVerifyOtp=$('#btn_verify_otp');
   if(btnVerifyOtp&&S.authOtp){
-    btnVerifyOtp.onclick=async()=>{
-      const code=($('#otp_code')||{}).value.trim();
-      const er=$('#otp_er');
-      if(er)er.textContent='';
-      if(!isOtpCode(code)){if(er)er.textContent='Iltimos, 6–8 xonali kodni kiriting.';return;}
-      btnVerifyOtp.disabled=true;btnVerifyOtp.textContent='Tekshirilmoqda…';
-      try{
-        const pending=S.authOtp;let r=await SB.auth.verifyOtp({email:pending.email,token:code,type:pending.mode==='login'?'email':'signup'});
-        if(r.error)throw r.error;
-        if(r.data&&r.data.session){
-          toast('✅ Hisobingiz tasdiqlandi!');
-          const s=r.data.session;delete S.authOtp;S.ob={s:0,a:{}};
-          await onSession(s);if(!new URLSearchParams(location.search).has('listing')&&!new URLSearchParams(location.search).has('seller'))location.hash=pending?.mode==='login'?'#/app':'#/onboarding';
-        }else{if(er)er.textContent='Kod tasdiqlanmadi. Qayta urinib ko‘ring.';}
-      }catch(err){if(er)er.textContent='Kod noto‘g‘ri yoki muddati tugagan: '+authErr(err.message||'');}
-      finally{btnVerifyOtp.disabled=false;btnVerifyOtp.textContent='Kodni tasdiqlash va kirish';}
-    };
+    btnVerifyOtp.onclick=async()=>{await completeEmailOtp(($('#otp_code')||{}).value||'',btnVerifyOtp,$('#otp_er'));};
   }
   const btnResendOtp=$('#btn_resend_otp');
-  if(btnResendOtp&&S.authOtp){
+  if(btnResendOtp&&S.authOtp&&!S.authOtp.verifiedSession){
     btnResendOtp.onclick=async()=>{
       try{btnResendOtp.disabled=true;const r=S.authOtp.mode==='login'?await SB.auth.signInWithOtp({email:S.authOtp.email,options:{shouldCreateUser:false,emailRedirectTo:location.origin+'/'}}):await SB.auth.resend({type:'signup',email:S.authOtp.email,options:{emailRedirectTo:location.origin+'/'}});if(r.error)throw r.error;toast('Tasdiqlash xati yuborildi. Spam papkasini ham tekshiring.');}
       catch(err){const er=$('#otp_er');if(er)er.textContent='Kodni yuborishda xatolik: '+authErr(err.message||'');}finally{setTimeout(()=>{btnResendOtp.disabled=false},60000)}
@@ -574,6 +558,17 @@ document.addEventListener('change',e=>{if(e.target.id=="lg"||e.target.id=="lgp")
 window.addEventListener('hashchange',()=>{if(location.hash=="#how"){document.getElementById('how')?.scrollIntoView({behavior:'smooth'});return}render()});
 /* ---------- PRODUCTION: Supabase + /api (OpenAI serverda) ---------- */
 let SB=null;
+async function completeEmailOtp(input,button,errorBox){
+ const pending=S.authOtp;if(!pending||S.otpVerifying)return;const code=input.trim();
+ if(!pending.verifiedSession&&!isOtpCode(code)){if(errorBox)errorBox.textContent='Iltimos, 6–8 xonali kodni kiriting.';return;}
+ S.otpVerifying=true;button.disabled=true;button.textContent='Tekshirilmoqda…';if(errorBox)errorBox.textContent='';
+ try{
+  if(!pending.verifiedSession){const r=await SB.auth.verifyOtp({email:pending.email,token:code,type:'email'});if(r.error)throw r.error;if(!r.data?.session)throw Error('Tasdiqlangan sessiya olinmadi');pending.verifiedSession=r.data.session;}
+  await onSession(pending.verifiedSession);delete S.authOtp;
+  const shared=new URLSearchParams(location.search);if(S.consentRequired)location.hash='#/consent';else if(!shared.has('listing')&&!shared.has('seller'))location.hash=pending.mode==='login'?'#/app':'#/onboarding';render();
+ }catch(e){if(errorBox)errorBox.textContent=pending.verifiedSession?'Kod qabul qilindi, lekin profil yuklanmadi ('+(e.endpoint||'server')+' · '+(e.status||'ulanish')+'). Yangi kod so‘ramasdan “Kirishni davom ettirish”ni bosing.':authErr(e.message||'');}
+ finally{S.otpVerifying=false;button.disabled=false;button.textContent=pending.verifiedSession?'Kirishni davom ettirish':'Kodni tasdiqlash va kirish';}
+}
 function isOtpCode(code){return /^\d{6,8}$/.test(code);}
 
 const recoveryCallbackAtLoad=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery';
@@ -581,7 +576,7 @@ function showRecovery(session){if(!session||!session.user)return;delete S.authOt
 
 I18N.uz.mock="AI javoblari sun’iy intellekt (ChatGPT/Gemini) orqali yaratiladi va taxminiy. Veterinariya tashxisi emas.";
 const tok=async()=>{const {data}=await SB.auth.getSession();return data.session&&data.session.access_token};
-const api=async(p,b)=>{const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await tok()},body:JSON.stringify(b)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||(r.status>=500?'Server javob bermadi yoki band. Bir daqiqadan keyin qayta urinib ko‘ring.':'Xatolik ('+r.status+')'));return j};
+const api=async(p,b)=>{const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await tok()},body:JSON.stringify(b)});const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.error||(r.status>=500?'Server javob bermadi yoki band. Bir daqiqadan keyin qayta urinib ko‘ring.':'Xatolik ('+r.status+')'));e.status=r.status;e.endpoint=p;throw e;}return j};
 const b64=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)});
 const thumbB64=f=>createImageBitmap(f).then(b=>{const k=Math.min(1,560/Math.max(b.width,b.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(b.width*k));c.height=Math.max(1,Math.round(b.height*k));c.getContext('2d').drawImage(b,0,0,c.width,c.height);return new Promise(r=>c.toBlob(r,'image/jpeg',.82))}).then(b64).catch(()=>'');
 async function persistNow(){
@@ -643,15 +638,16 @@ AIService.scan=async o=>{const files=[...o.files].slice(0,3);const bl=await Prom
 AIService.chat=async(q,imgs)=>{const hist=(S.chatLog||[]).slice(-6).map(m=>(m.role=='u'?'Mijoz: ':'AI: ')+m.text).join('\n');const anCtx=S.animals.slice(0,12).map(a=>`${a.name} (${a.id}): ${a.type}, zot ${a.breed}, yosh ${a.age}, vazn ${a.w}, holati ${a.h}`).join('; ');return await api('/api/chat',{message:q,images:imgs||[],context:`Hayvonlar: ${anCtx}\nOxirgi suhbat:\n${hist}`})};
 const KEYS=['animals','weight','health','vacc','farm','rem','lang','fp','chatLog'];
 const fresh=()=>Object.assign(S,{animals:[],weight:[],health:[],vacc:[],rem:[],farm:{fn:'',fr:'',fd:''},plan:'Bepul',fp:null,chatLog:[]});
-async function onSession(se){const id=se.user.id;if(S.uid===id&&DB)return;fresh();const rawName=String(se.user.user_metadata.full_name||se.user.email||'Fermer');S.user=rawName.includes('@')?rawName.split('@')[0]:rawName.split(' ')[0];
+async function onSession(se){if(S.sessionReady===se.user.id&&DB)return;if(S.sessionLoading)return S.sessionLoading;S.sessionLoading=loadSession(se);try{return await S.sessionLoading;}catch(e){DB=null;S.sessionReady=null;throw e;}finally{S.sessionLoading=null;}}
+async function loadSession(se){const id=se.user.id;fresh();const rawName=String(se.user.user_metadata.full_name||se.user.email||'Fermer');S.user=rawName.includes('@')?rawName.split('@')[0]:rawName.split(' ')[0];
   S.uid=id;const p=await SB.from('profiles').select('role,full_name').eq('id',id).maybeSingle();S.admin=!!(p.data&&p.data.role==='admin');if(p.data&&p.data.full_name)S.user=p.data.full_name;
   const st=await SB.from('app_state').select('json').eq('user_id',id).maybeSingle();
   if(st.data&&st.data.json){try{const j=JSON.parse(st.data.json);KEYS.forEach(k=>{if(j[k]!==undefined)S[k]=j[k]})}catch(_){}}
-  const billing=await api('/api/account',{});S.plan=billing.plan;S.limits=billing.limits;DB={set:async({json})=>{await api('/api/state',{json})}};last=JSON.stringify(Object.fromEntries(KEYS.map(k=>[k,S[k]])));
-  const consent=await api('/api/consent',{});S.consentRequired=!consent.accepted;const sharedEntry=new URLSearchParams(location.search);if(['','#/'].includes(location.hash)&&!sharedEntry.has('listing')&&!sharedEntry.has('seller')&&!sharedEntry.has('code')&&!sharedEntry.has('token_hash')){render();return;}if(S.consentRequired){location.hash='#/consent';render();return;}
+  const billing=await api('/api/account',{});S.plan=billing.plan;S.limits=billing.limits;last=JSON.stringify(Object.fromEntries(KEYS.map(k=>[k,S[k]])));
+  const consent=await api('/api/consent',{});S.consentRequired=!consent.accepted;DB={set:async({json})=>{await api('/api/state',{json})}};S.sessionReady=id;const sharedEntry=new URLSearchParams(location.search);if(['','#/'].includes(location.hash)&&!sharedEntry.has('listing')&&!sharedEntry.has('seller')&&!sharedEntry.has('code')&&!sharedEntry.has('token_hash')){render();return;}if(S.consentRequired){location.hash='#/consent';render();return;}
   const shared=new URLSearchParams(location.search);if(shared.get('listing')){S.mcur=shared.get('listing');location.hash='#/market-view';render();return}if(shared.get('seller')){S.sellerNick=shared.get('seller');location.hash='#/seller';render();return}
   const isNew=!(st.data&&st.data.json);if(isNew)S.ob={s:0,a:{}};if(['','#/','#/login','#/register'].includes(location.hash))location.hash=isNew?'#/onboarding':'#/app';else render()}
-function authErr(m){const k=/after (\d+) seconds/.exec(m);if(k)return 'Xavfsizlik uchun '+k[1]+' soniyadan keyin qayta urinib ko‘ring. Ro‘yxatdan o‘tgan bo‘lsangiz, emailingizdagi xatni (Spam papkasini ham) tekshiring.';
+function authErr(m){if(/expired|invalid.*token|token.*invalid|otp_expired/i.test(m))return 'Kod noto‘g‘ri yoki muddati tugagan. Eng oxirgi yuborilgan xatdagi kodni kiriting.';if(/fetch|network/i.test(m))return 'Ulanishda xatolik. Internetni tekshirib qayta urinib ko‘ring.';const k=/after (\d+) seconds/.exec(m);if(k)return 'Xavfsizlik uchun '+k[1]+' soniyadan keyin qayta urinib ko‘ring. Ro‘yxatdan o‘tgan bo‘lsangiz, emailingizdagi xatni (Spam papkasini ham) tekshiring.';
  if(/Invalid login/i.test(m))return 'Email yoki parol noto‘g‘ri.';if(/already registered/i.test(m))return 'Bu email bilan hisob mavjud. “Kirish” bo‘limidan foydalaning.';
  if(/rate limit/i.test(m))return 'Juda ko‘p xat yuborildi. Birozdan keyin qayta urinib ko‘ring.';if(/not confirmed/i.test(m))return 'Email tasdiqlanmagan. Pochtangizdagi xatni tekshiring.';
  if(/at least/i.test(m))return 'Parol kamida 8 belgidan iborat bo‘lishi kerak.';if(/email.*send|smtp|sending/i.test(m))return 'Tasdiqlash xatini yuborib bo‘lmadi. Administrator pochta xizmatini tekshirishi kerak.';if(/provider|oauth/i.test(m))return 'Google kirish sozlamalarini administrator tekshirishi kerak.';return 'Xatolik yuz berdi. Qayta urinib ko‘ring.'}
@@ -685,20 +681,19 @@ async function doAuth(em,pw,meta){
   }
   if(er){er.style.color='var(--ok)';er.textContent='Emailingizga tasdiqlash xati yuborildi. Havolani bosing.';}
 }
-async function delAcc(){try{await api('/api/delete-account',{});await SB.auth.signOut();localStorage.removeItem('ft_state_backup');DB=null;fresh();S.admin=false;location.href='/'}catch(_){toast('Hisobni o‘chirib bo‘lmadi. Qayta urinib ko‘ring.')}}
+async function delAcc(){try{await api('/api/delete-account',{});await SB.auth.signOut();localStorage.removeItem('ft_state_backup');DB=null;S.sessionReady=null;fresh();S.admin=false;location.href='/'}catch(_){toast('Hisobni o‘chirib bo‘lmadi. Qayta urinib ko‘ring.')}}
 document.addEventListener('click',async e=>{const b=e.target.closest('#gg,#rs,#lo');if(!b)return;
   if(b.id=='rs'){location.hash='#/recovery';return;}
   if(!SB)return;
   if(b.id=='gg')googleLogin();
-  else{e.preventDefault();await SB.auth.signOut();localStorage.removeItem('ft_state_backup');DB=null;fresh();S.admin=false;location.href='/'}});
+  else{e.preventDefault();await SB.auth.signOut();localStorage.removeItem('ft_state_backup');DB=null;S.sessionReady=null;fresh();S.admin=false;location.href='/'}});
 async function initApp(){
   DL={save:({filename,data})=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data]));a.download=filename;a.click();return Promise.resolve()}};
   try{const langSaved=localStorage.getItem('ft_lang');if(langSaved)S.lang=langSaved}catch(_){}
   fetch('/i18n.json').then(r=>r.ok?r.json():{}).then(j=>{TR=j;if(S.lang&&S.lang!='uz'){applyI18n();render()}}).catch(()=>{});try{const c=await(await fetch('/api/config')).json();if(!c.url||!c.key)throw new Error('Serverda SUPABASE_URL yoki SUPABASE_ANON_KEY kiritilmagan');if(!window.supabase)throw new Error('Supabase skripti yuklanmadi (internet yoki reklama bloker)');window.CFG=c;SB=window.supabase.createClient(c.url,c.key);
     SB.auth.onAuthStateChange((ev, session) => {setTimeout(async()=>{
-      if(session && ev === 'SIGNED_IN'&&!S.recState&&!recoveryCallbackAtLoad){
-        delete S.authOtp;
-        await onSession(session);
+      if(session && ev === 'SIGNED_IN'&&!S.recState&&!recoveryCallbackAtLoad&&!S.authOtp&&!S.otpVerifying){
+        try{await onSession(session);}catch(e){toast('Kirish tasdiqlandi, lekin profil yuklanmadi. Sahifani yangilab qayta urinib ko‘ring.');}
       } else if(ev === 'PASSWORD_RECOVERY'){
         showRecovery(session);
       }
