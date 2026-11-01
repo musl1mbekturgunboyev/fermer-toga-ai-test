@@ -7,7 +7,7 @@ self.addEventListener('push', e => {
     body: d.body || 'Yangi eslatma vaqti yaqinlashdi!',
     icon: '/logo-icon.png',
     badge: '/favicon.png',
-    vibrate: [200, 100, 200]
+    vibrate: [200, 100, 200],tag:d.tag,data:{url:d.url||'/#/reminders'}
   }));
 });
 self.addEventListener('message', e => {

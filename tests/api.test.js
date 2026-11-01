@@ -431,7 +431,7 @@ test('8. AI Chat with images + structured feeding schedule extraction + auto VAP
 
   const cfgHandler = require('../api/config');
   const cfgRes = mockRes();
-  cfgHandler({}, cfgRes);
+  await cfgHandler({}, cfgRes);
   assert.ok(cfgRes.body.vapid && cfgRes.body.vapid.length > 40, 'Auto VAPID public key must be present');
 });
 // qo'shimcha testlar: 9. Ko'p tillilik (i18n) va 10. Kiberxavfsizlik (XSS, Magic Bytes bypass, IDOR/Escalation, IP rate limit)
@@ -507,7 +507,7 @@ test('13. Recovery callback restores the password form without entering the dash
  const init=html.slice(html.indexOf('async function initApp(){'),html.indexOf('/* ---------- v1.1:'));
  const session={user:{id:'test-user',email:'test@example.com'}};let entered=0,rendered=0;const changes=[];
  const ctx={SB:null,DL:null,TR:null,S:{},recoveryCallbackAtLoad:true,location:{hash:'#access_token=example&type=recovery',pathname:'/',search:''},localStorage:{getItem:()=>null},sessionStorage:{removeItem:k=>changes.push(k)},history:{replaceState:()=>{}},render:()=>rendered++,applyI18n:()=>{},toast:()=>{},onSession:()=>entered++,fetch:async p=>({ok:true,json:async()=>p==='/api/config'?{url:'https://test.supabase.co',key:'test'}:{}}),window:{supabase:{createClient:()=>({auth:{onAuthStateChange:()=>{},getSession:async()=>({data:{session}})}})}}};
- vm.createContext(ctx);vm.runInContext(show+'\n'+init,ctx);await vm.runInContext('initApp()',ctx);
+ vm.createContext(ctx);vm.runInContext(html.match(/function sessionClientOptions\(\)\{[^\n]+\}/)[0]+'\n'+show+'\n'+init,ctx);await vm.runInContext('initApp()',ctx);
  assert.equal(entered,0);assert.equal(ctx.S.recState.linkVerified,true);assert.equal(ctx.S.recState.target,'test@example.com');assert.ok(rendered>0);assert.ok(changes.includes('ft_recovery_pending'));
 });
 test('14. Missing recovery session never marks a link verified',()=>{
@@ -548,4 +548,76 @@ test('22. Consent acceptance requires both unchecked-by-default approvals and pe
 });
 test('23. Admin can revoke a paid plan through the existing atomic plan function',async()=>{
  resetEnv();const original=global.fetch;let payload;global.fetch=async(url,opts={})=>{if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'});if(url.includes('/profiles?select=role'))return jsonResponse(200,[{role:'admin'}]);if(url.includes('/rpc/set_user_plan')){payload=JSON.parse(opts.body);return jsonResponse(204,null)}return jsonResponse(200,{})};try{const res=mockRes();await adminActionHandler({method:'POST',headers:{authorization:'Bearer token'},body:{action:'revoke_plan',user_id:'11111111-1111-1111-1111-111111111111'}},res);assert.equal(res.statusCode,200);assert.equal(payload.p_plan,'Bepul');assert.equal(payload.p_user,'11111111-1111-1111-1111-111111111111')}finally{global.fetch=original}
+});
+
+
+test('24. Fresh auth links show introduction; recovery and shared links remain intact',()=>{
+ const fs=require('node:fs'),vm=require('node:vm');const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');
+ const code=html.match(/function publicEntryUrl\(href\)\{[^\n]+\}/)[0];const ctx={URL};vm.createContext(ctx);vm.runInContext(code,ctx);
+ for(const hash of ['#/register','#/login'])assert.equal(new URL(ctx.publicEntryUrl('https://fermertoga.uz/'+hash)).hash,'#/');
+ for(const path of ['','#/','#/recovery','#access_token=test&type=recovery','?code=test#/login','?error=denied#/login','?listing=abc#/login','?seller=fermer#/register','#/animals'])assert.equal(ctx.publicEntryUrl('https://fermertoga.uz/'+path),'https://fermertoga.uz/'+path);
+});
+
+test('25. Restoring a session on the homepage does not skip the introduction',async()=>{
+ const fs=require('node:fs'),vm=require('node:vm');const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');const code=html.slice(html.indexOf('async function onSession('),html.indexOf('function authErr('));
+ for(const accepted of [false,true]){let rendered=0;const ctx={S:{},DB:null,KEYS:[],URLSearchParams,location:{hash:'',search:''},fresh:()=>{},render:()=>rendered++,api:async p=>p==='/api/consent'?{accepted}:{plan:'Bepul',limits:{}},SB:{from:table=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:table==='profiles'?{role:'user'}:null})})})})}};vm.createContext(ctx);vm.runInContext(code,ctx);await ctx.onSession({user:{id:'abc',email:'farmer@example.test',user_metadata:{}}});assert.equal(ctx.location.hash,'');assert.equal(rendered,1);assert.equal(ctx.S.consentRequired,!accepted);}
+});
+
+test('26. Valid OTP is not consumed again after profile loading fails; consent wins redirect',async()=>{
+ const fs=require('node:fs'),vm=require('node:vm');const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');const code=html.slice(html.indexOf('async function completeEmailOtp('),html.indexOf('const recoveryCallbackAtLoad='));
+ let verifications=0,loads=0;const ctx={S:{authOtp:{email:'farmer@example.test',mode:'login'}},URLSearchParams,location:{search:'',hash:'#/login'},render:()=>{},authErr:m=>m,SB:{auth:{verifyOtp:async p=>{assert.equal(p.type,'email');verifications++;return {data:{session:{user:{id:'one'}}}}}}},onSession:async()=>{loads++;if(loads===1){const e=Error('down');e.endpoint='/api/account';e.status=503;throw e;}ctx.S.consentRequired=true;}};
+ vm.createContext(ctx);vm.runInContext(code,ctx);const button={},error={};await ctx.completeEmailOtp('12345678',button,error);assert.match(error.textContent,/Kod qabul qilindi/);assert.equal(button.textContent,'Kirishni davom ettirish');assert.equal(ctx.S.otpVerifying,false);await ctx.completeEmailOtp('',button,error);assert.equal(verifications,1);assert.equal(loads,2);assert.equal(ctx.location.hash,'#/consent');assert.equal(ctx.S.authOtp,undefined);
+});
+
+test('27. Invalid OTP never starts loading profile or creates a session',async()=>{
+ const fs=require('node:fs'),vm=require('node:vm');const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');const code=html.slice(html.indexOf('async function completeEmailOtp('),html.indexOf('const recoveryCallbackAtLoad='));let loads=0;const ctx={S:{authOtp:{email:'farmer@example.test',mode:'login'}},URLSearchParams,location:{search:''},authErr:m=>m,onSession:async()=>loads++,SB:{auth:{verifyOtp:async()=>({error:{message:'Token has expired'}})}}};vm.createContext(ctx);vm.runInContext(code,ctx);const b={},e={};await ctx.completeEmailOtp('12345678',b,e);assert.equal(loads,0);assert.equal(ctx.S.authOtp.verifiedSession,undefined);assert.equal(b.disabled,false);assert.equal(e.textContent,'Token has expired');
+});
+
+test('28. Persisted session is awaited before protected-route redirects',()=>{
+ const fs=require('node:fs'),vm=require('node:vm');const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');const ctx={S:{},guarded:['#/app']};vm.createContext(ctx);vm.runInContext(html.match(/function sessionGate\(h\)\{[^\n]+\}/)[0]+'\n'+html.match(/function sessionClientOptions\(\)\{[^\n]+\}/)[0],ctx);assert.equal(ctx.sessionGate('#/app'),'loading');assert.equal(ctx.sessionGate('#/'),'');ctx.S.authReady=true;assert.equal(ctx.sessionGate('#/app'),'login');ctx.S.user='Remembered user';assert.equal(ctx.sessionGate('#/app'),'');assert.equal(ctx.sessionClientOptions().auth.persistSession,true);assert.equal(ctx.sessionClientOptions().auth.autoRefreshToken,true);
+});
+
+test('29. Session restoration does not send a new OTP',async()=>{
+ const fs=require('node:fs'),vm=require('node:vm');const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8'),init=html.slice(html.indexOf('async function initApp(){'),html.indexOf('/* ---------- v1.1:'));let loaded=0,otp=0,options;const session={user:{id:'remembered'}};const ctx={S:{},localStorage:{getItem:()=>null},fetch:async p=>({ok:true,json:async()=>p==='/api/config'?{url:'https://test.supabase.co',key:'public'}:{}}),window:{supabase:{createClient:(u,k,o)=>{options=o;return {auth:{onAuthStateChange:()=>{},getSession:async()=>({data:{session}}),signInWithOtp:()=>otp++}}}}},recoveryCallbackAtLoad:false,location:{hash:'#/app'},onSession:async s=>{assert.equal(s.user.id,'remembered');loaded++},toast:()=>{},render:()=>{},applyI18n:()=>{}};vm.createContext(ctx);vm.runInContext(html.match(/function sessionClientOptions\(\)\{[^\n]+\}/)[0]+'\n'+init,ctx);await ctx.initApp();assert.equal(loaded,1);assert.equal(otp,0);assert.equal(options.auth.persistSession,true);assert.equal(ctx.S.authReady,true);
+});
+
+test('30. Public feed limits fields and only queries approved active listings',async()=>{
+ resetEnv();let query;const old=global.fetch;global.fetch=async url=>{query=String(url);return jsonResponse(200,[{id:'listing',title:'Sigir',price:123,photos:['a.jpg'],phone:'private',seller_id:'private',status:'active'}])};try{const res=mockRes();await require('../api/market-feed')({method:'GET'},res);assert.equal(res.statusCode,200);assert.match(query,/status=eq.active/);assert.match(query,/limit=12/);assert.equal(res.body.listings[0].phone,undefined);assert.equal(res.body.listings[0].seller_id,undefined);assert.equal(res.body.listings[0].id,'listing');}finally{global.fetch=old;}
+});
+
+test('31. Brand requires signed-in admin; public banners escape titles and have real detail links',()=>{
+ const fs=require('node:fs'),vm=require('node:vm');const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');const ctx={S:{},esc:x=>String(x).replaceAll('<','&lt;').replaceAll('>','&gt;'),cacheListing:()=>{},listingUrl:id=>'https://farm.example/?listing='+id+'#/market-view',money:p=>p+' so‘m',pic:()=>'<img alt="E’lon rasmi">',first:()=>''};vm.createContext(ctx);vm.runInContext(html.match(/function canViewBrand\(\)\{[^\n]+\}/)[0]+'\n'+html.match(/function featuredMarkup\(list\)\{[^\n]+\}/)[0],ctx);assert.equal(ctx.canViewBrand(),false);ctx.S.user='user';assert.equal(ctx.canViewBrand(),false);ctx.S.admin=true;assert.equal(ctx.canViewBrand(),true);const out=ctx.featuredMarkup([{id:'real',title:'<script>',price:100},{id:'two',title:'Qo‘y',price:200}]);assert.ok(!out.includes('<script>'));assert.match(out,/data-lv="real"/);assert.match(out,/data-feature-pause/);assert.match(out,/aria-hidden="true"/);assert.match(html,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);assert.ok(html.includes('https://t.me/AloqaMessenger_bot'));
+});
+
+ test('reminders respect Tashkent time, lead time, midnight and expiry',()=>{
+ const {dueReminder}=require('../api/_reminder-time');
+ const at=s=>Date.parse(s);
+ assert.ok(dueReminder(['Yem','2026-11-01','08:00',0],at('2026-11-01T03:00:00Z')));
+ assert.equal(dueReminder(['Yem','2026-11-01','08:00',0],at('2026-11-01T02:59:59Z')),null);
+ assert.ok(dueReminder(['Yem','2026-11-01','08:00',10],at('2026-11-01T02:50:00Z')));
+ assert.ok(dueReminder(['Yem','Har kuni','00:05',10],at('2026-11-01T18:55:00Z')));
+ assert.equal(dueReminder(['Yem','2026-11-01','08:00',0],at('2026-11-01T03:05:00Z')),null);
+ assert.equal(dueReminder(['Yem','Har kuni','25:00',0]),null);
+ });
+
+test('feed moderation rejects non-admin; malformed images never upload',async()=>{
+ resetEnv();const handler=require('../api/feed-listings');let uploads=0;
+ global.fetch=async(url,opts={})=>{if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:'feed-owner'});if(url.includes('terms_acceptances'))return jsonResponse(200,[{user_id:'feed-owner'}]);if(url.includes('/storage/'))uploads++;return jsonResponse(200,[])};
+ const req=body=>({method:'POST',headers:{authorization:'Bearer test'},body});
+ let res=mockRes();await handler(req({action:'approve',id:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'}),res);assert.equal(res.statusCode,403);
+ res=mockRes();await handler(req({action:'create',title:'Pichan',category:'Pichan',price:100,unit:'kg',phone:'+998901234567',region:'Toshkent',images:'invalid'}),res);assert.equal(res.statusCode,400);assert.equal(uploads,0);
+});
+
+test('reminder delivery marks only successful sends and releases failed claims',async()=>{
+ const push=require('../api/_push'),handler=require('../api/send-reminders');const saved={send:push.send,allowed:push.cronAllowed},now=Date.now;let writes=[];
+ try{Date.now=()=>Date.parse('2026-11-01T03:00:00Z');push.cronAllowed=async()=>true;
+ global.fetch=async(url,opts={})=>{if(url.includes('app_state?'))return jsonResponse(200,[{user_id:'user',json:{rem:[['Yem','2026-11-01','08:00',0]]}}]);if(url.includes('push_subs?'))return jsonResponse(200,[{user_id:'user',sub:{endpoint:'https://fcm.googleapis.com/test'}}]);if(url.includes('claim_reminder'))return jsonResponse(200,true);if(opts.method==='PATCH'){writes.push(JSON.parse(opts.body));return jsonResponse(200,null)}throw Error('Unexpected '+url)};
+ push.send=async()=>{};let res=mockRes();await handler({headers:{}},res);assert.equal(res.body.sent,1);assert.equal(writes[0].status,'sent');
+ writes=[];push.send=async()=>{throw Error('offline')};res=mockRes();await handler({headers:{}},res);assert.equal(res.body.sent,0);assert.equal(res.body.failed,1);assert.equal(writes[0].locked_until,new Date(0).toISOString());assert.ok(!writes.some(x=>x.status==='sent'));
+ }finally{Date.now=now;push.send=saved.send;push.cronAllowed=saved.allowed}
+});
+
+test('chat indicator appears during pending request, prevents repeats and clears after reply',async()=>{
+ const fs=require('fs'),vm=require('vm'),html=fs.readFileSync(require('path').join(__dirname,'../public/index.html'),'utf8');const start=html.indexOf('const ask=async q=>'),end=html.indexOf('\n    cf.onsubmit',start);let resolve,htmlOut='',removed=0,calls=0;const button={disabled:false},c={isConnected:true,insertAdjacentHTML:(_,s)=>htmlOut+=s};const S={chatImgs:[],chatLog:[]};
+ const ctx={S,cf:{querySelectorAll:()=>[button]},cprev:null,cim:null,$:()=>c,typingIndicator:()=>'<span id="ai-typing">Javob tayyorlanmoqda…</span>',renderChatMsg:m=>m.text,AIService:{chat:()=>{calls++;return new Promise(r=>resolve=r)}},document:{getElementById:()=>({remove:()=>removed++})},persist:()=>{},applyFeedSchedule:()=>{},location:{hash:'#/assistant'}};vm.createContext(ctx);vm.runInContext(html.slice(start,end)+';globalThis.ask=ask;',ctx);const pending=ctx.ask('Salom');assert.equal(S.chatPending,true);assert.ok(htmlOut.includes('Javob tayyorlanmoqda'));assert.equal(button.disabled,true);await ctx.ask('Takror');assert.equal(calls,1);resolve('Javob');await pending;assert.equal(S.chatPending,false);assert.equal(button.disabled,false);assert.equal(removed,1);assert.equal(S.chatLog.at(-1).text,'Javob');
 });
