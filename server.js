@@ -121,29 +121,16 @@ if (require.main === module) {
   const host = (hi>=0?process.argv[hi+1]:null) || process.env.HOST || (process.env.RENDER ? '0.0.0.0' : '127.0.0.1');
   server.listen(port, host, () => console.log('Tayyor: http://localhost:' + port));
 
-  // Kunlik eslatmalar: har kuni 04:00 UTC (09:00 Toshkent)
-  const cron = () => {
-    const n = new Date(), t = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate(), 4));
-    if (t <= n) t.setUTCDate(t.getUTCDate() + 1);
-    setTimeout(async () => {
-      const r = { status() { return r; }, json() {}, end() {} };
-      try {
-        await require('./api/send-reminders.js')({ headers: { authorization: 'Bearer ' + process.env.CRON_SECRET }, body: { mode: 'daily' } }, r);
-      } catch (e) {
-        console.error(e);
-      }
-      cron();
-    }, t - n);
-  };
-  cron();
-
-  // Har 60 soniyada: yem berish / parvarish vaqtiga 10 minut qolgan eslatmalarni tekshirib push yuboradi
-  setInterval(async () => {
-    const r = { status() { return r; }, json() {}, end() {} };
-    try {
-      await require('./api/send-reminders.js')({ headers: { authorization: 'Bearer ' + process.env.CRON_SECRET }, body: { mode: '10min' } }, r);
-    } catch (_) {}
-  }, 60000).unref();
+  // Default scheduler: supabase/reminder-scheduler.sql. Free Render may sleep.
+  // Enable this fallback only when using an always-on Node server instead of external cron.
+  if(process.env.REMINDER_NODE_TIMER==='1'&&process.env.CRON_SECRET){
+    let running=false;
+    setInterval(async()=>{if(running)return;running=true;
+      const r={status(){return r},json(){},end(){}};
+      try{await require('./api/send-reminders.js')({headers:{authorization:'Bearer '+process.env.CRON_SECRET}},r)}
+      catch(_){console.error('Reminder timer failed')}finally{running=false}
+    },60000).unref();
+  }
 }
 
 module.exports = { server, createHandler };

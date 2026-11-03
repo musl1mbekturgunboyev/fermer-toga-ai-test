@@ -48,6 +48,8 @@ function resetEnv() {
   process.env.LISTING_FEE_MODE = 'off';
   process.env.PAY_INFO = 'Karta: 8600 1234';
   delete process.env.GEMINI_MODEL;
+  delete process.env.GEMINI_FAST_MODEL;
+  delete process.env.GEMINI_FALLBACK_MODELS;
   delete process.env.OPENAI_MODEL;
 }
 
@@ -69,6 +71,8 @@ test('2. Provider failover: OpenAI 429 falls back to Gemini automatically', asyn
   const calls = [];
   global.fetch = async (url, opts) => {
     if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
+    if(url.includes('/rpc/reserve_ai_quota'))return jsonResponse(200,JSON.parse(opts.body).p_request);
+    if(url.includes('/rpc/finish_ai_quota'))return jsonResponse(200,true);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     calls.push(url);
     if (url.includes('api.openai.com')) {
@@ -98,11 +102,15 @@ test('3. Model fallback & 503 backoff retry: 404 retired model + 503 transient o
   resetEnv();
   delete process.env.OPENAI_API_KEY;
   process.env.AI_PRIORITY = 'gemini';
+  process.env.GEMINI_FAST_MODEL = 'gemini-2.0-flash';
+  process.env.GEMINI_FALLBACK_MODELS = 'gemini-2.5-flash-lite';
   process.env.GEMINI_MODEL = 'gemini-2.0-flash'; // retired model -> 404
 
   const modelAttempts = [];
-  global.fetch = async (url) => {
+  global.fetch = async (url, opts = {}) => {
     if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
+    if(url.includes('/rpc/reserve_ai_quota'))return jsonResponse(200,JSON.parse(opts.body).p_request);
+    if(url.includes('/rpc/finish_ai_quota'))return jsonResponse(200,true);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     const m = /models\/([^:]+):generateContent/.exec(url);
     const model = m ? decodeURIComponent(m[1]) : 'unknown';
@@ -131,8 +139,10 @@ test('4. Timeout handling: per-attempt TimeoutError switches to backup model/pro
   resetEnv();
   process.env.AI_PRIORITY = 'openai,gemini';
 
-  global.fetch = async (url) => {
+  global.fetch = async (url, opts = {}) => {
     if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
+    if(url.includes('/rpc/reserve_ai_quota'))return jsonResponse(200,JSON.parse(opts.body).p_request);
+    if(url.includes('/rpc/finish_ai_quota'))return jsonResponse(200,true);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     if (url.includes('api.openai.com')) {
       const err = new Error('The operation was aborted due to timeout');
@@ -325,8 +335,10 @@ test('7. AI Scan & Chat endpoints: return structured data when AI succeeds, clea
   process.env.AI_PRIORITY = 'gemini';
 
   let aiDown = false;
-  global.fetch = async (url) => {
+  global.fetch = async (url, opts = {}) => {
     if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
+    if(url.includes('/rpc/reserve_ai_quota'))return jsonResponse(200,JSON.parse(opts.body).p_request);
+    if(url.includes('/rpc/finish_ai_quota'))return jsonResponse(200,true);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     if (url.endsWith('/auth/v1/user')) {
       return jsonResponse(200, { id: '99999999-9999-9999-9999-999999999999' });
@@ -340,6 +352,7 @@ test('7. AI Scan & Chat endpoints: return structured data when AI succeeds, clea
           content: {
             parts: [{
               text: JSON.stringify({
+                assessable:true,
                 species: 'Sigir',
                 breed: 'Qora-ola',
                 age: '2-3 yosh',
@@ -367,7 +380,8 @@ test('7. AI Scan & Chat endpoints: return structured data when AI succeeds, clea
   }, sRes1);
   assert.equal(sRes1.statusCode, 200);
   assert.equal(sRes1.body.species, 'Sigir');
-  assert.equal(sRes1.body.weight, '380-420 kg');
+  assert.equal(sRes1.body.weight_kg, null);
+  assert.equal(sRes1.body.confidence,null);
 
   // Scan when AI is down -> 503 with masked key & Uzbek explanation
   aiDown = true;
@@ -378,7 +392,7 @@ test('7. AI Scan & Chat endpoints: return structured data when AI succeeds, clea
     body: { type: 'Sigir', age: '3 yosh', images: [VALID_JPEG_B64] }
   }, sRes2);
   assert.equal(sRes2.statusCode, 503);
-  assert.match(sRes2.body.error, /kvota|limit/i);
+  assert.match(sRes2.body.error, /kvota|limit|cheklangan/i);
   assert.ok(!sRes2.body.error.includes('AIzaSySecretKey999'));
 
   // Rate limit check on chat
@@ -397,8 +411,10 @@ test('8. AI Chat with images + structured feeding schedule extraction + auto VAP
   delete process.env.OPENAI_API_KEY;
   process.env.AI_PRIORITY = 'gemini';
 
-  global.fetch = async (url) => {
+  global.fetch = async (url, opts = {}) => {
     if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
+    if(url.includes('/rpc/reserve_ai_quota'))return jsonResponse(200,JSON.parse(opts.body).p_request);
+    if(url.includes('/rpc/finish_ai_quota'))return jsonResponse(200,true);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     if (url.endsWith('/auth/v1/user')) {
       return jsonResponse(200, { id: '77777777-7777-7777-7777-777777777777' });
