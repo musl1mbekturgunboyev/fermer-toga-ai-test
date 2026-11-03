@@ -1,51 +1,43 @@
-const test=require('node:test'),assert=require('node:assert/strict'),crypto=require('node:crypto');
-const billing=require('../api/_billing'),lib=require('../api/_lib'),ai=require('../api/_ai'),push=require('../api/_push');
-const user='00000000-0000-4000-8000-000000000001';
-const reply=(status,body)=>({ok:status<300,status,text:async()=>JSON.stringify(body),json:async()=>body});
-const res=()=>({statusCode:200,status(n){this.statusCode=n;return this},json(x){this.body=x;return this},end(){}});
-function setup(){lib.resetRateLimits();process.env.SUPABASE_URL='https://mock.example';process.env.SUPABASE_ANON_KEY='test';process.env.SUPABASE_SERVICE_ROLE_KEY='test';}
-const request=body=>({method:'POST',headers:{authorization:'Bearer test'},body});
-function fetcher(settlements){return async(url,opts={})=>{
- if(url.endsWith('/auth/v1/user'))return reply(200,{id:user});
- if(url.includes('terms_acceptances'))return reply(200,[{user_id:user}]);
- if(url.includes('reserve_ai_quota'))return reply(200,JSON.parse(opts.body).p_request);
- if(url.includes('finish_ai_quota')){settlements.push(JSON.parse(opts.body));return reply(200,true);}
- throw Error('Unexpected network call');
-};}
-test('failed and successful AI calls settle only their own request',async()=>{
- setup();const savedFetch=global.fetch,chat=ai.chat;const settled=[];
- try{
- global.fetch=fetcher(settled);ai.chat=async()=>{throw Error('offline')};let out=res();await require('../api/chat')(request({message:'hello'}),out);
- assert.equal(out.statusCode,503);assert.deepEqual(settled.map(x=>x.p_success),[false]);
- ai.chat=async()=>({data:'answer',provider:'mock'});out=res();await require('../api/chat')(request({message:'hello'}),out);
- assert.equal(out.statusCode,200);assert.deepEqual(settled.map(x=>x.p_success),[false,true]);assert.notEqual(settled[0].p_request,settled[1].p_request);
- }finally{global.fetch=savedFetch;ai.chat=chat;}
+const test=require('node:test'),assert=require('node:assert/strict'),crypto=require('node:crypto'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const root=path.join(__dirname,'..');
+const response=(data,status=200)=>({ok:status<400,status,text:async()=>JSON.stringify(data),json:async()=>data});
+const res=()=>({statusCode:200,status(c){this.statusCode=c;return this},json(x){this.body=x;return this},end(){return this}});
+const uid='11111111-1111-1111-1111-111111111111';
+test('Security: untrusted forwarded IP cannot rotate limits; trusted proxy uses last hop',()=>{
+ const {getClientIp}=require('../api/_lib');const saved=process.env.TRUSTED_PROXY_IPS;try{delete process.env.TRUSTED_PROXY_IPS;const req={socket:{remoteAddress:'127.0.0.1'},headers:{'x-forwarded-for':'198.51.100.1, 203.0.113.2'}};assert.equal(getClientIp(req),'127.0.0.1');process.env.TRUSTED_PROXY_IPS='127.0.0.1';assert.equal(getClientIp(req),'203.0.113.2')}finally{if(saved===undefined)delete process.env.TRUSTED_PROXY_IPS;else process.env.TRUSTED_PROXY_IPS=saved;}
 });
-test('rejected and malformed scans return their reservation and never invent results',async()=>{
- setup();const f=global.fetch,v=ai.vision,settled=[];
- try{
- global.fetch=fetcher(settled);ai.vision=async()=>({data:{assessable:false},provider:'mock'});
- let out=res();const body={images:['data:image/jpeg;base64,YQ==']};await require('../api/scan')(request(body),out);assert.equal(out.statusCode,422);
- ai.vision=async()=>({data:{},provider:'mock'});out=res();await require('../api/scan')(request(body),out);assert.equal(out.statusCode,503);
- ai.vision=async()=>({data:{assessable:true,weight_kg:320,confidence:99,health_status:'Healthy'},provider:'mock'});out=res();await require('../api/scan')(request(body),out);assert.equal(out.statusCode,200);assert.equal(out.body.weight_kg,null);assert.equal(out.body.confidence,null);assert.notEqual(out.body.health_status,'Healthy');
- assert.deepEqual(settled.map(x=>x.p_success),[false,false,true]);
- }finally{global.fetch=f;ai.vision=v;}
+test('Security: invalid reminder/state and duplicate IDs are rejected before database write',async()=>{
+ const handler=require('../api/state'),lib=require('../api/_lib'),original=global.fetch;let writes=0;lib.resetRateLimits();process.env.SUPABASE_URL='https://mock.supabase.co';
+ global.fetch=async(url,opts={})=>{if(url.endsWith('/auth/v1/user'))return response({id:uid});if(url.includes('consume_api_rate'))return response(true);if(opts.method==='POST')writes++;return response({updated_at:'2026-11-03T00:00:00Z'})};
+ try{for(const state of [{animals:[],rem:[{}]},{animals:[{id:'x'},{id:'x'}]},{animals:[],rem:[['test','Har kuni','25:00',10]]}]){const r=res();await handler({method:'POST',headers:{authorization:'Bearer t'},body:{json:JSON.stringify(state),expectedUpdatedAt:null}},r);assert.equal(r.statusCode,400)}assert.equal(writes,0);
+ const r=res();await handler({method:'POST',headers:{authorization:'Bearer t'},body:{json:'{"animals":[]}',expectedUpdatedAt:null}},r);assert.equal(r.statusCode,200);assert.equal(writes,1);
+ }finally{global.fetch=original}
+ assert.equal(require('../api/_reminder-time').dueReminder({}),null);
 });
-test('push rejects malicious endpoints and mismatched stored endpoint before any network/config access',async()=>{
- const sub={endpoint:'https://fcm.googleapis.com/fcm/send/test',keys:{p256dh:Buffer.concat([Buffer.from([4]),crypto.randomBytes(64)]).toString('base64url'),auth:crypto.randomBytes(16).toString('base64url')}};
- assert.equal(push.validSubscription(sub,sub.endpoint),true);
- for(const endpoint of ['https://127.0.0.1/test','https://169.254.169.254/test','https://fcm.googleapis.com.evil.example/test','https://fcm.googleapis.com:8443/test','https://fcm.googleapis.com@evil.example/test','http://fcm.googleapis.com/test','https://fcm.googleapis.com/test#fragment']){
-  assert.equal(push.validSubscription({...sub,endpoint},endpoint),false);
- }
- const f=global.fetch;let calls=0;global.fetch=async()=>{calls++;throw Error('must not fetch')};
- try{await assert.rejects(push.send(sub,{},'https://evil.example/test'),e=>e.code==='INVALID_PUSH_SUBSCRIPTION');assert.equal(calls,0)}finally{global.fetch=f;}
+test('Security: database rate limits fail closed and conflict never reports a save success',async()=>{
+ const handler=require('../api/state'),lib=require('../api/_lib'),old=global.fetch;process.env.SUPABASE_URL='https://mock.supabase.co';let mode='denied';global.fetch=async url=>url.endsWith('/auth/v1/user')?response({id:uid}):url.includes('consume_api_rate')?response(mode==='denied'?false:true):response({conflict:true});
+ try{for(const [m,status] of [['denied',429],['conflict',409]]){mode=m;lib.resetRateLimits();const r=res();await handler({method:'POST',headers:{authorization:'Bearer t'},body:{json:'{"animals":[]}',expectedUpdatedAt:null}},r);assert.equal(r.statusCode,status)}}finally{global.fetch=old}
 });
-test('listing status server binds RPC owner to authenticated user and rejects arbitrary updates',async()=>{
- setup();const f=global.fetch;let body;
- try{
- global.fetch=async(url,opts={})=>{if(url.endsWith('/auth/v1/user'))return reply(200,{id:user});body=JSON.parse(opts.body);return reply(200,true)};
- const id='10000000-0000-4000-8000-000000000001';let out=res();await require('../api/listing-status')(request({id,status:'sold',p_user:'attacker',title:'changed'}),out);
- assert.equal(out.statusCode,200);assert.deepEqual(body,{p_user:user,p_id:id,p_status:'sold'});
- out=res();await require('../api/listing-status')(request({id,status:'active'}),out);assert.equal(out.statusCode,400);
- }finally{global.fetch=f;}
+test('Security: failed or corrupted state load keeps remote saving disabled',async()=>{
+ const html=fs.readFileSync(path.join(root,'public/index.html'),'utf8'),code=html.slice(html.indexOf('async function onSession('),html.indexOf('function authErr('));
+ for(const state of [{data:null,error:{message:'down'}},{data:{json:'invalid'},error:null}]){const ctx={S:{},DB:null,KEYS:['animals'],tm:null,clearTimeout,fresh(){ctx.S.animals=[]},URLSearchParams,location:{hash:'',search:''},render(){throw Error('must not render loaded state')},SB:{from:t=>({select:()=>({eq:()=>({maybeSingle:async()=>t==='profiles'?{data:{role:'user'}}:state})})})}};vm.createContext(ctx);vm.runInContext(code,ctx);await assert.rejects(()=>ctx.onSession({user:{id:uid,user_metadata:{},email:'farmer@example.test'}}));assert.equal(ctx.DB,null);assert.equal(ctx.S.sessionReady,null);}
+});
+test('Security: image headers cannot disguise arbitrary files or huge decoded images',()=>{
+ const {imageBuffer,validBuffer}=require('../api/_image');const jpg=fs.readFileSync(path.join(__dirname,'fixtures/valid.jpg'));assert.ok(imageBuffer('data:image/jpeg;base64,'+jpg.toString('base64')));assert.equal(imageBuffer('data:image/jpeg;base64,'+Buffer.from([255,216,...Array(32).fill(65)]).toString('base64')),null);assert.equal(imageBuffer('data:image/png;base64,'+jpg.toString('base64')),null);
+ for(let size=0;size<100;size++)assert.doesNotThrow(()=>validBuffer(crypto.randomBytes(size)));
+ const malicious=Buffer.from(jpg),sof=malicious.indexOf(Buffer.from([255,192]));assert.ok(sof>0);malicious.writeUInt16BE(65535,sof+5);assert.equal(validBuffer(malicious),false);
+});
+test('Security: exported CSV escapes formulas, commas, quotes and multiline cells',()=>{
+ const html=fs.readFileSync(path.join(root,'public/index.html'),'utf8'),code=html.slice(html.indexOf('const csvCell='),html.indexOf('const esc='));const ctx={};vm.createContext(ctx);vm.runInContext(code+'globalThis.cell=csvCell;',ctx);assert.equal(ctx.cell('=1+1'),'"\'=1+1"');assert.equal(ctx.cell('a,"b"\nc'),'"a,""b""\nc"');assert.equal(ctx.cell('  @SUM(1)'),'"\'  @SUM(1)"');
+});
+test('Security: web push interoperates with independent RFC encryption implementation and verifies VAPID signature',async()=>{
+ const {requestDetails,validateSubscription}=require('../api/_webpush');const ece=require('http_ece');const ua=crypto.createECDH('prime256v1');ua.generateKeys();const vapid=crypto.createECDH('prime256v1');vapid.generateKeys();const auth=crypto.randomBytes(16),subscription={endpoint:'https://fcm.googleapis.com/test',keys:{p256dh:ua.getPublicKey('base64url'),auth:auth.toString('base64url')}},config={public_key:vapid.getPublicKey('base64url'),private_key:vapid.getPrivateKey('base64url')};const payload={title:'Test',body:'O‘zbekcha xabar'};
+ const req=await requestDetails(subscription,payload,config);assert.deepEqual(JSON.parse(ece.decrypt(req.body,{version:'aes128gcm',privateKey:ua,authSecret:auth}).toString()),payload);
+ const jwt=/t=([^,]+)/.exec(req.headers.Authorization)[1],parts=jwt.split('.'),pub=vapid.getPublicKey();const key=crypto.createPublicKey({key:{kty:'EC',crv:'P-256',x:pub.subarray(1,33).toString('base64url'),y:pub.subarray(33).toString('base64url')},format:'jwk'});assert.ok(crypto.verify('sha256',Buffer.from(parts.slice(0,2).join('.')),{key,dsaEncoding:'ieee-p1363'},Buffer.from(parts[2],'base64url')));assert.equal(JSON.parse(Buffer.from(parts[1],'base64url')).aud,'https://fcm.googleapis.com');
+ for(const endpoint of ['http://127.0.0.1','https://example.test','https://fcm.googleapis.com:444/x','https://fcm.googleapis.com.evil.test/x'])assert.equal(validateSubscription({...subscription,endpoint}),false);assert.equal(req.redirect,'error');
+});
+test('Security: server rejects malformed JSON and ships matching CSP hashes without inline-script permission',async()=>{
+ const headers=require('../security-headers.json'),html=fs.readFileSync(path.join(root,'public/index.html'),'utf8');assert.ok(!headers['Content-Security-Policy'].includes("script-src 'self' 'unsafe-inline'"));for(const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)){if(/src=/.test(m[1]))continue;const hash=crypto.createHash('sha256').update(m[2].replace(/\r\n?/g,'\n')).digest('base64');assert.ok(headers['Content-Security-Policy'].includes(hash));}
+ const {server}=require('../server');await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
+ try{const invalid=await fetch(origin+'/api/state',{method:'POST',body:'{'});assert.equal(invalid.status,400);const array=await fetch(origin+'/api/state',{method:'POST',body:'[]'});assert.equal(array.status,400);const main=await fetch(origin);assert.equal(main.status,200);assert.equal(main.headers.get('Content-Security-Policy'),headers['Content-Security-Policy']);const vendor=await fetch(origin+'/vendor/supabase-2.118.0.js');assert.equal(vendor.status,200)}finally{await new Promise(r=>server.close(r))}
 });
