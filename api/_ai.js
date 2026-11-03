@@ -13,23 +13,33 @@ const cool = {}, good = {}, badModel = {}; // provayder -> o‘chiq vaqt; ishlag
 const T = ms => AbortSignal.timeout(Math.max(1000, Math.floor(ms)));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-const fail = (r, j) => {
+const fail = (r, j, model) => {
   const raw = (j && j.error && (j.error.message || j.error.status || j.error)) || ('AI xatosi (' + r.status + ')');
-  return Object.assign(new Error(mask(raw)), { status: r.status });
+  const details = Array.isArray(j?.error?.details) ? j.error.details : [];
+  const quota = details.flatMap(d => (d.violations || []).map(v => ({
+    metric: mask(v.quotaMetric), id: mask(v.quotaId),
+    model: mask(v.quotaDimensions?.model)
+  })));
+  const retry = details.find(d => d.retryDelay)?.retryDelay;
+  const seconds = Number.parseFloat(retry);
+  return Object.assign(new Error(mask(raw)), {
+    status: r.status, model, quota,
+    retryMs: Number.isFinite(seconds) ? Math.min(3600000, Math.max(1000, seconds * 1000)) : undefined
+  });
 };
 
 const cleanKey = k => String(k || '').trim().replace(/^["']|["']$/g, '');
-const models = (env, def) => [...new Set([ cleanKey(process.env[env]), ...def ].filter(Boolean))];
+// An explicit model is authoritative. Add alternatives only via *_FALLBACK_MODELS.
+const models = (env, def) => {
+  const configured = cleanKey(process.env[env]);
+  const extra = cleanKey(process.env[env.replace(/_MODEL$/, '_FALLBACK_MODELS')])
+    .split(',').map(s => s.trim()).filter(Boolean);
+  return [...new Set([...(configured ? [configured] : def), ...extra])];
+};
 const SWITCH = [400, 404, 408, 429, 500, 502, 503, 504];
 const isTimeout = e => !!(e && (e.name === 'TimeoutError' || e.name === 'AbortError' || /timeout|aborted|Vaqt tugadi/i.test(e.message || '')));
 
-const DEFAULT_GEMINI_MODELS = [
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash',
-  'gemini-3.5-flash-lite',
-  'gemini-3.8-flash',
-  'gemini-flash-latest'
-];
+const DEFAULT_GEMINI_MODELS = ['gemini-2.5-flash-lite'];
 
 const DEFAULT_OPENAI_MODELS = [
   'gpt-4o-mini',
@@ -48,9 +58,7 @@ async function tryModels(name, list, deadline, fn) {
   const now = Date.now();
   const avail = list.filter(m => !(badModel[name + ':' + m] > now));
   const pool = avail.length ? avail : list;
-  const ordered = good[name] && pool.includes(good[name])
-    ? [good[name], ...pool.filter(m => m !== good[name])]
-    : pool;
+  const ordered = pool;
 
   for (const m of ordered) {
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -64,6 +72,10 @@ async function tryModels(name, list, deadline, fn) {
         return res;
       } catch (e) {
         last = e;
+        e.model = e.model || m;
+        // Quota/auth errors must reach the backup provider immediately.
+        if ([401, 402, 403, 429].includes(e.status)) throw e;
+        if (isTimeout(e)) throw e;
         if (e.status === 404 || /not found|not supported for generateContent|shut down/i.test(e.message || '')) {
           badModel[name + ':' + m] = Date.now() + 3600000;
           break;
@@ -111,7 +123,7 @@ const P = {
           })
         });
         const j = await r.json().catch(() => ({}));
-        if (!r.ok) throw fail(r, j);
+        if (!r.ok) throw fail(r, j, model);
         const t = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
         if (!t) throw Object.assign(new Error('Bo‘sh javob'), { status: 502 });
         return t;
@@ -130,7 +142,7 @@ const P = {
       });
       const parts = [{ text: String(user || '') }, ...imgParts];
       const baseModels = P.gemini.models();
-      const fastModel = cleanKey(process.env.GEMINI_FAST_MODEL) || 'gemini-2.5-flash-lite';
+      const fastModel = cleanKey(process.env.GEMINI_FAST_MODEL) || baseModels[0];
       const list = fast ? [...new Set([fastModel, ...baseModels])] : baseModels;
       const attemptMax = Number(process.env.AI_ATTEMPT_MS) || (fast ? 12000 : 15000);
 
@@ -156,7 +168,7 @@ const P = {
           body: JSON.stringify(body)
         });
         const j = await r.json().catch(() => ({}));
-        if (!r.ok) throw fail(r, j);
+        if (!r.ok) throw fail(r, j, model);
         const cand = j.candidates && j.candidates[0];
         const candParts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
         const t = candParts.filter(p => !p.thought).map(p => p.text || '').join('').trim()
@@ -197,13 +209,20 @@ async function run(opts, parse) {
 
   const now = Date.now();
   const ready = order.filter(n => !(cool[n] > now));
-  const list = ready.length ? ready : order;
+  if (!ready.length) {
+    const wait = Math.max(1000, Math.min(...order.map(n => cool[n])) - now);
+    throw Object.assign(new Error('AI vaqtincha cheklangan. Birozdan keyin qayta urinib ko‘ring.'), { status: 429, retryMs: wait });
+  }
+  const list = ready;
   let last;
   const tried = [];
 
   for (const n of list) {
     try {
-      const text = await P[n].call(opts);
+      // Leave a fair share of the deadline for every remaining provider.
+      const remaining = list.length - list.indexOf(n);
+      const providerDeadline = Date.now() + Math.floor((opts.deadline - Date.now()) / remaining);
+      const text = await P[n].call({ ...opts, deadline: providerDeadline });
       const data = parse ? parse(text) : text;
       delete cool[n];
       return { provider: n, model: good[n], data };
@@ -213,8 +232,8 @@ async function run(opts, parse) {
       tried.push(n + ' ' + code + ': ' + mask(e.message));
       e.tried = tried;
       const isAuthOrQuota = [401, 402, 403, 429].includes(e.status);
-      cool[n] = Date.now() + (isAuthOrQuota ? 180000 : 25000);
-      console.error('AI xato [' + n + ']', code, mask(e.message));
+      cool[n] = Date.now() + (e.retryMs || (isAuthOrQuota ? 60000 : 15000));
+      console.error('AI xato [' + n + ']', JSON.stringify({ status: code, model: e.model || null, quota: e.quota || [], retryMs: e.retryMs || null, message: mask(e.message) }));
     }
   }
   throw last;
@@ -247,7 +266,7 @@ exports.explain = e => {
       : /location is not supported|unsupported_country|not available in your (country|region)|User location is not supported|territory/i.test(m)
         ? 'AI xizmati server joylashgan hududda mavjud emas. Administrator Render regionini AQSh (Oregon/Ohio) ga o‘zgartirishi kerak.'
         : /quota|billing|RESOURCE_EXHAUSTED|rate limit|insufficient/i.test(m) || [402, 429].includes(st)
-          ? 'AI bepul limiti (kvota) hozircha tugagan. Birozdan keyin qayta urinib ko‘ring yoki pullik tarif / ikkinchi AI kalitini ulang.'
+          ? 'AI xizmati vaqtincha cheklangan. Birozdan keyin qayta urinib ko‘ring.'
           : [401, 403].includes(st)
             ? 'AI kaliti yaroqsiz yoki unga ruxsat yo‘q. Administrator kalitni tekshirsin.'
             : st === 404 || /is not found|not supported for generateContent|shut down/i.test(m)
@@ -257,7 +276,7 @@ exports.explain = e => {
                 : isTimeout(e) || st === 504
                   ? 'AI javobi kechikdi. Rasmni kichraytirib yoki birozdan keyin qayta urinib ko‘ring.'
                   : 'AI xizmati hozir band. Birozdan keyin qayta urinib ko‘ring.';
-  return t + tag;
+  return t; // Provider diagnostics belong in server logs, not customer messages.
 };
 
 async function listGeminiModels() {
