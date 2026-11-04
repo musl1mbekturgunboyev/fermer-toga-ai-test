@@ -4,12 +4,12 @@ services:
     runtime: node
     region: oregon        # AQSh (Oregon) — Gemini API hududiy cheklovlarisiz barqaror ishlaydi
     plan: free            # Uxlab qolmasligi uchun "starter" ($7/oy) ga o‘zgartiring
-    buildCommand: npm ci --omit=dev
+    buildCommand: npm install --omit=dev
     startCommand: node server.js
     healthCheckPath: /healthz
     envVars:
       - key: NODE_VERSION
-        value: 24
+        value: 20.18.0
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
@@ -32,6 +32,14 @@ services:
         value: "14000"
       - key: AI_DEADLINE_MS
         value: "45000"
+      - key: LISTING_FEE_MODE
+        value: "off"
+      - key: PAY_INFO
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
       - key: VAPID_PUBLIC_KEY
         sync: false
       - key: VAPID_PRIVATE_KEY

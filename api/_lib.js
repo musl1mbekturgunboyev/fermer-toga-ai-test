@@ -1,4 +1,3 @@
-const timedFetch=require('./_http');
 // Umumiy yordamchilar: foydalanuvchini tekshirish (Supabase), so‘rovlar chegarasi (rate limit), VAPID kalitlar, admin tekshiruvi.
 const crypto = require('crypto');
 const fs = require('fs');
@@ -15,11 +14,9 @@ const LIMITS = {
 
 // Client IP manzilini xavfsiz aniqlash
 function getClientIp(req) {
-  const peer=(req.socket && req.socket.remoteAddress)||'';
-  const trusted=(process.env.TRUSTED_PROXY_IPS||'').split(',').map(x=>x.trim()).filter(Boolean);
-  const xf=req.headers && req.headers['x-forwarded-for'];
-  if(trusted.includes(peer)&&typeof xf==='string'){const ip=xf.split(',').pop().trim();if(ip.length<=45&&/^[0-9a-f:.]+$/i.test(ip))return ip;}
-  return (req.socket && req.socket.remoteAddress) || 'unknown';
+  const xf = req.headers && req.headers['x-forwarded-for'];
+  if (xf) return xf.split(',')[0].trim();
+  return (req.socket && req.socket.remoteAddress) || '127.0.0.1';
 }
 
 function ensureVapidKeys() {
@@ -56,7 +53,6 @@ function checkRateLimit(key, kind = 'default') {
   const cfg = LIMITS[kind] || LIMITS.default;
   const now = Date.now();
   const bucketKey = kind + ':' + key;
-  if(!rl.has(bucketKey)&&rl.size>=10000){for(const [k,v] of rl)if(!v.length||now-v[v.length-1]>120000)rl.delete(k);if(rl.size>=10000)return false;}
   const arr = (rl.get(bucketKey) || []).filter(t => now - t < cfg.windowMs);
   if (arr.length >= cfg.max) return false;
   arr.push(now);
@@ -72,20 +68,19 @@ function checkRateLimit(key, kind = 'default') {
 async function auth(req, res, kind = 'default') {
   // IP darajasida tekshirish (Botnet va DoS hujumlariga qarshi)
   const ip = getClientIp(req);
-  if (ip!=='unknown' && !checkRateLimit(ip, 'ip')) {
+  if (!checkRateLimit(ip, 'ip')) {
     res.status(429).json({ error: 'Juda ko‘p so‘rov (IP). Biroz kuting.' });
     return null;
   }
 
   const t = String((req.headers && req.headers.authorization) || '').replace(/^Bearer\s+/i, '').trim();
-  if (!t || t.length>8192) {
+  if (!t) {
     res.status(401).json({ error: 'Kirish talab qilinadi' });
     return null;
   }
   let r;
   try {
-    r = await timedFetch(process.env.SUPABASE_URL + '/auth/v1/user', {
-      signal:AbortSignal.timeout(10000),
+    r = await fetch(process.env.SUPABASE_URL + '/auth/v1/user', {
       headers: { Authorization: 'Bearer ' + t, apikey: process.env.SUPABASE_ANON_KEY }
     });
   } catch (_) {
@@ -110,12 +105,11 @@ async function auth(req, res, kind = 'default') {
     try{const rows=await require('./_billing').db('terms_acceptances?select=user_id&user_id=eq.'+u.id);if(!Array.isArray(rows)||!rows.length){res.status(403).json({error:'Avval foydalanish shartlari va maxfiylik siyosatiga rozilik bering.',code:'CONSENT_REQUIRED'});return null;}}
     catch(e){res.status(503).json({error:'Rozilik holatini tekshirib bo‘lmadi'});return null;}
   }
-  try{const ok=await require('./_billing').db('rpc/consume_api_rate',{method:'POST',body:JSON.stringify({p_user:u.id,p_kind:kind})});if(ok!==true){res.status(429).json({error:'Juda ko‘p so‘rov. Biroz kuting.'});return null;}}catch{res.status(503).json({error:'So‘rov himoyasi sozlanmagan yoki baza vaqtincha band.'});return null;}
   return u;
 }
 
 async function openai(body) {
-  const r = await timedFetch('https://api.openai.com/v1/chat/completions', {
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + process.env.OPENAI_API_KEY },
     body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4o-mini', ...body })
@@ -131,7 +125,7 @@ async function ins(table, row) {
   const k = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!k || !process.env.SUPABASE_URL) return;
   try {
-    await timedFetch(process.env.SUPABASE_URL + '/rest/v1/' + table, {
+    await fetch(process.env.SUPABASE_URL + '/rest/v1/' + table, {
       method: 'POST',
       headers: { apikey: k, Authorization: 'Bearer ' + k, 'Content-Type': 'application/json' },
       body: JSON.stringify(row)
@@ -145,7 +139,7 @@ async function isAdmin(id) {
   const k = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!k || !process.env.SUPABASE_URL) return false;
   try {
-    const r = await (await timedFetch(process.env.SUPABASE_URL + '/rest/v1/profiles?select=role&id=eq.' + id, {
+    const r = await (await fetch(process.env.SUPABASE_URL + '/rest/v1/profiles?select=role&id=eq.' + id, {
       headers: { apikey: k, Authorization: 'Bearer ' + k }
     })).json();
     return !!(r && r[0] && r[0].role === 'admin');

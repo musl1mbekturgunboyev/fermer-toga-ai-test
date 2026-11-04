@@ -1,12 +1,10 @@
-Avval [SECURITY-UPDATE.md](SECURITY-UPDATE.md) dagi SQL yangilash tartibini bajaring.
-
 # O‘z serveringizda joylash (Vercel'siz)
 
 Kerak: Ubuntu 22.04 server (VPS), domen, Supabase va OpenAI hisoblari.
 
 1. **Serverga kiring** (`ssh root@SERVER_IP`) va o‘rnating:
    `apt update && apt install -y nginx certbot python3-certbot-nginx unzip`
-   Node 24: `curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && apt install -y nodejs`
+   Node 20: `curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt install -y nodejs`
 2. **Loyihani yuklang** (masalan `/var/www/fermer`): zip'ni `scp` bilan ko‘chirib `unzip` qiling.
 3. `cd /var/www/fermer && npm install --omit=dev`
 4. `.env.local` yarating (README'dagi o‘zgaruvchilar). `chmod 600 .env.local`

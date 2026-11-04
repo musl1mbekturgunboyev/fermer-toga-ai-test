@@ -31,6 +31,3 @@ begin
 end $$;
 revoke execute on function public.claim_reminder(text,uuid) from public,anon,authenticated;
 grant execute on function public.claim_reminder(text,uuid) to service_role;
-
-drop trigger if exists feed_listing_limit on public.feed_listings;
-create trigger feed_listing_limit before insert on public.feed_listings for each row execute function public.enforce_listing_limit();

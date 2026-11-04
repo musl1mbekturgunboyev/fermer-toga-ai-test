@@ -13,9 +13,20 @@ grant all on public.seller_profiles to service_role;
 drop policy if exists marketplace_read_handles on public.seller_profiles;
 create policy marketplace_read_handles on public.seller_profiles for select to authenticated using(true);
 insert into public.seller_profiles(user_id,nickname)
-select id,'fermer_'||replace(id::text,'-','')::varchar(16) from auth.users on conflict(user_id) do nothing;
-create or replace function public.create_seller_handle() returns trigger language plpgsql security definer set search_path='' as $$begin
- insert into public.seller_profiles(user_id,nickname) values(new.id,'fermer_'||left(replace(new.id::text,'-',''),16)) on conflict(user_id) do nothing;return new;end$$;
+select id,'fermer_'||replace(id::text,'-','')::varchar(16) from auth.users on conflict do nothing;
+create or replace function public.create_seller_handle() returns trigger language plpgsql security definer set search_path='' as $$
+declare candidate text;attempt integer;
+begin
+ for attempt in 0..7 loop
+  candidate:='fermer_'||case when attempt=0 then left(replace(new.id::text,'-',''),16) else left(replace(gen_random_uuid()::text,'-',''),16) end;
+  begin
+   insert into public.seller_profiles(user_id,nickname) values(new.id,candidate) on conflict(user_id) do nothing;
+   return new;
+  exception when unique_violation then null;
+  end;
+ end loop;
+ raise exception 'Cannot allocate unique seller handle';
+end$$;
 revoke all on function public.create_seller_handle() from public,anon,authenticated;
 drop trigger if exists create_marketplace_handle on auth.users;
 create trigger create_marketplace_handle after insert on auth.users for each row execute function public.create_seller_handle();

@@ -26,13 +26,22 @@ const T = {
   '.ico': 'image/x-icon'
 };
 
-const SECURITY=require('./security-headers.json');
-
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in",
+  "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co",
+  "font-src 'self' data:",
+  "worker-src 'self' blob:",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'"
+].join('; ');
 
 const pub = path.join(__dirname, 'public');
 
 function createHandler() {
-  let active=0;
   return (req, res) => {
     res.status = c => { res.statusCode = c; return res; };
     res.json = o => {
@@ -43,10 +52,9 @@ function createHandler() {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
-    for(const [name,value] of Object.entries(SECURITY))res.setHeader(name,value);
+    res.setHeader('Content-Security-Policy', CSP);
 
-    res.setHeader('Cache-Control','no-store');
-    let u;try{u=new URL(req.url || '/', 'http://x')}catch{return res.status(400).end('Noto‘g‘ri manzil')}
+    const u = new URL(req.url || '/', 'http://x');
     if (u.pathname === '/healthz' || u.pathname === '/api/health') {
       return res.status(200).json({ ok: true, status: 'healthy' });
     }
@@ -56,9 +64,6 @@ function createHandler() {
       if (!/^[a-z-]+$/.test(n) || n.startsWith('_') || !fs.existsSync(path.join(__dirname, 'api', n + '.js'))) {
         return res.status(404).json({ error: 'Topilmadi' });
       }
-      if(active>=32){res.setHeader('Retry-After','3');return res.status(503).json({error:'Server band. Birozdan keyin qayta urinib ko‘ring.'});}
-      active++;res.once('close',()=>{active--});
-      if(Number(req.headers['content-length'])>6000000)return res.status(413).json({error:'So‘rov hajmi juda katta'});
       const chunks = [];
       let size = 0;
       let tooLarge = false;
@@ -77,10 +82,9 @@ function createHandler() {
         try {
           req.body = JSON.parse(Buffer.concat(chunks).toString() || '{}');
         } catch (_) {
-          return res.status(400).json({error:'JSON noto‘g‘ri'});
+          req.body = {};
         }
         try {
-          if(!req.body||typeof req.body!=='object'||Array.isArray(req.body))return res.status(400).json({error:'JSON obyekt bo‘lishi kerak'});
           await require('./api/' + n + '.js')(req, res);
         } catch (e) {
           console.error(e);
@@ -109,7 +113,7 @@ function createHandler() {
   };
 }
 
-const server = http.createServer({requestTimeout:30000,headersTimeout:15000},createHandler());
+const server = http.createServer(createHandler());
 
 if (require.main === module) {
   const pi=process.argv.indexOf('--port'),hi=process.argv.indexOf('--host');
@@ -117,29 +121,16 @@ if (require.main === module) {
   const host = (hi>=0?process.argv[hi+1]:null) || process.env.HOST || (process.env.RENDER ? '0.0.0.0' : '127.0.0.1');
   server.listen(port, host, () => console.log('Tayyor: http://localhost:' + port));
 
-  // Kunlik eslatmalar: har kuni 04:00 UTC (09:00 Toshkent)
-  const cron = () => {
-    const n = new Date(), t = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate(), 4));
-    if (t <= n) t.setUTCDate(t.getUTCDate() + 1);
-    setTimeout(async () => {
-      const r = { status() { return r; }, json() {}, end() {} };
-      try {
-        await require('./api/send-reminders.js')({ headers: { authorization: 'Bearer ' + process.env.CRON_SECRET }, body: { mode: 'daily' } }, r);
-      } catch (e) {
-        console.error(e);
-      }
-      cron();
-    }, t - n);
-  };
-  cron();
-
-  // Har 60 soniyada: yem berish / parvarish vaqtiga 10 minut qolgan eslatmalarni tekshirib push yuboradi
-  setInterval(async () => {
-    const r = { status() { return r; }, json() {}, end() {} };
-    try {
-      await require('./api/send-reminders.js')({ headers: { authorization: 'Bearer ' + process.env.CRON_SECRET }, body: { mode: '10min' } }, r);
-    } catch (_) {}
-  }, 60000).unref();
+  // Default scheduler: supabase/reminder-scheduler.sql. Free Render may sleep.
+  // Enable this fallback only when using an always-on Node server instead of external cron.
+  if(process.env.REMINDER_NODE_TIMER==='1'&&process.env.CRON_SECRET){
+    let running=false;
+    setInterval(async()=>{if(running)return;running=true;
+      const r={status(){return r},json(){},end(){}};
+      try{await require('./api/send-reminders.js')({headers:{authorization:'Bearer '+process.env.CRON_SECRET}},r)}
+      catch(_){console.error('Reminder timer failed')}finally{running=false}
+    },60000).unref();
+  }
 }
 
 module.exports = { server, createHandler };

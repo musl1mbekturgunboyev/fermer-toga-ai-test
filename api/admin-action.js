@@ -1,6 +1,5 @@
-const timedFetch=require('./_http');
 const { auth, ins, isAdmin } = require('./_lib');
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID = /^[0-9a-f-]{36}$/i;
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
@@ -14,7 +13,7 @@ module.exports = async (req, res) => {
   const H = { apikey: K, Authorization: 'Bearer ' + K, 'Content-Type': 'application/json' };
 
   if (b.action === 'approve' && UUID.test(b.id)) {
-    const r = await timedFetch(
+    const r = await fetch(
       U + '/rest/v1/listings?status=in.(pending_payment,pending_review)&id=eq.' + b.id,
       { method: 'PATCH', headers: H, body: JSON.stringify({ status: 'active' }) }
     );
@@ -24,7 +23,7 @@ module.exports = async (req, res) => {
   }
 
   if (b.action === 'reject' && UUID.test(b.id)) {
-    const r = await timedFetch(
+    const r = await fetch(
       U + '/rest/v1/listings?status=in.(pending_payment,pending_review,active)&id=eq.' + b.id,
       { method: 'PATCH', headers: H, body: JSON.stringify({ status: 'removed' }) }
     );
@@ -34,7 +33,7 @@ module.exports = async (req, res) => {
 
   if (['set_plan','revoke_plan'].includes(b.action) && UUID.test(b.user_id) && (b.action==='revoke_plan'||['Bepul', 'Pro', 'Ferma'].includes(b.plan))) {
     if(b.action==='revoke_plan')b.plan='Bepul';
-    const months = Math.min(24, Math.max(1, Math.floor(+b.months) || 1));
+    const months = Math.min(24, Math.max(1, +b.months || 1));
     try {
       await require('./_billing').db('rpc/set_user_plan',{method:'POST',body:JSON.stringify({p_user:b.user_id,p_plan:b.plan,p_months:months})});
     } catch(e) {return res.status(503).json({error:'Tarif saqlanmadi. Baza migratsiyasini tekshiring.'});}

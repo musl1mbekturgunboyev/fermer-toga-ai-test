@@ -8,7 +8,7 @@ const chatHandler = require('../api/chat');
 const adminActionHandler = require('../api/admin-action');
 
 // Valid JPEG base64 header (0xFF, 0xD8, 0xFF, 0xE0 ...)
-const VALID_JPEG_B64 = 'data:image/jpeg;base64,'+require('fs').readFileSync(require('path').join(__dirname,'fixtures/valid.jpg')).toString('base64');
+const VALID_JPEG_B64 = 'data:image/jpeg;base64,' + Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xD9]).toString('base64');
 
 function mockRes() {
   return {
@@ -47,8 +47,9 @@ function resetEnv() {
   process.env.AI_DEADLINE_MS = '15000';
   process.env.LISTING_FEE_MODE = 'off';
   process.env.PAY_INFO = 'Karta: 8600 1234';
-  delete process.env.GEMINI_FALLBACK_MODELS;
   delete process.env.GEMINI_MODEL;
+  delete process.env.GEMINI_FAST_MODEL;
+  delete process.env.GEMINI_FALLBACK_MODELS;
   delete process.env.OPENAI_MODEL;
 }
 
@@ -68,8 +69,10 @@ test('1. JSON parsing strips Markdown code fences and trailing commas & masks se
 test('2. Provider failover: OpenAI 429 falls back to Gemini automatically', async () => {
   resetEnv();
   const calls = [];
-  global.fetch = async (url, opts) => {if(url.includes('/rpc/consume_api_rate'))return jsonResponse(200,true);
+  global.fetch = async (url, opts) => {
     if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
+    if(url.includes('/rpc/reserve_ai_quota'))return jsonResponse(200,JSON.parse(opts.body).p_request);
+    if(url.includes('/rpc/finish_ai_quota'))return jsonResponse(200,true);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     calls.push(url);
     if (url.includes('api.openai.com')) {
@@ -99,12 +102,15 @@ test('3. Model fallback & 503 backoff retry: 404 retired model + 503 transient o
   resetEnv();
   delete process.env.OPENAI_API_KEY;
   process.env.AI_PRIORITY = 'gemini';
-  process.env.GEMINI_FALLBACK_MODELS='gemini-2.5-flash-lite';
+  process.env.GEMINI_FAST_MODEL = 'gemini-2.0-flash';
+  process.env.GEMINI_FALLBACK_MODELS = 'gemini-2.5-flash-lite';
   process.env.GEMINI_MODEL = 'gemini-2.0-flash'; // retired model -> 404
 
   const modelAttempts = [];
-  global.fetch = async (url) => {if(url.includes('/rpc/consume_api_rate'))return jsonResponse(200,true);
+  global.fetch = async (url, opts = {}) => {
     if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
+    if(url.includes('/rpc/reserve_ai_quota'))return jsonResponse(200,JSON.parse(opts.body).p_request);
+    if(url.includes('/rpc/finish_ai_quota'))return jsonResponse(200,true);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     const m = /models\/([^:]+):generateContent/.exec(url);
     const model = m ? decodeURIComponent(m[1]) : 'unknown';
@@ -133,8 +139,10 @@ test('4. Timeout handling: per-attempt TimeoutError switches to backup model/pro
   resetEnv();
   process.env.AI_PRIORITY = 'openai,gemini';
 
-  global.fetch = async (url) => {if(url.includes('/rpc/consume_api_rate'))return jsonResponse(200,true);
+  global.fetch = async (url, opts = {}) => {
     if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
+    if(url.includes('/rpc/reserve_ai_quota'))return jsonResponse(200,JSON.parse(opts.body).p_request);
+    if(url.includes('/rpc/finish_ai_quota'))return jsonResponse(200,true);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     if (url.includes('api.openai.com')) {
       const err = new Error('The operation was aborted due to timeout');
@@ -163,7 +171,7 @@ test('5. Listing moderation: rejects non-animal photo (422), rejects species mis
   const uploadedPaths = [];
   const insertedListings = [];
 
-  global.fetch = async (url, opts = {}) => {if(url.includes('/rpc/consume_api_rate'))return jsonResponse(200,true);
+  global.fetch = async (url, opts = {}) => {
     if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
     if (url.endsWith('/auth/v1/user')) {
       return jsonResponse(200, { id: '11111111-1111-1111-1111-111111111111', email: 'fermer@test.uz' });
@@ -238,7 +246,7 @@ test('6. Fee modes & All-AI-down fallback: manual fee -> pending_payment, Pro su
   let subscriptions = [];
   let patchedStatus = null;
 
-  global.fetch = async (url, opts = {}) => {if(url.includes('/rpc/consume_api_rate'))return jsonResponse(200,true);
+  global.fetch = async (url, opts = {}) => {
     if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
     if (url.endsWith('/auth/v1/user')) {
       return jsonResponse(200, { id: '11111111-1111-1111-1111-111111111111' });
@@ -327,8 +335,10 @@ test('7. AI Scan & Chat endpoints: return structured data when AI succeeds, clea
   process.env.AI_PRIORITY = 'gemini';
 
   let aiDown = false;
-  global.fetch = async (url) => {if(url.includes('/rpc/consume_api_rate'))return jsonResponse(200,true);
+  global.fetch = async (url, opts = {}) => {
     if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
+    if(url.includes('/rpc/reserve_ai_quota'))return jsonResponse(200,JSON.parse(opts.body).p_request);
+    if(url.includes('/rpc/finish_ai_quota'))return jsonResponse(200,true);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     if (url.endsWith('/auth/v1/user')) {
       return jsonResponse(200, { id: '99999999-9999-9999-9999-999999999999' });
@@ -342,7 +352,7 @@ test('7. AI Scan & Chat endpoints: return structured data when AI succeeds, clea
           content: {
             parts: [{
               text: JSON.stringify({
-                assessable:true,image_quality:{full_body_visible:false,reliable_scale_visible:false},
+                assessable:true,
                 species: 'Sigir',
                 breed: 'Qora-ola',
                 age: '2-3 yosh',
@@ -370,8 +380,8 @@ test('7. AI Scan & Chat endpoints: return structured data when AI succeeds, clea
   }, sRes1);
   assert.equal(sRes1.statusCode, 200);
   assert.equal(sRes1.body.species, 'Sigir');
-  assert.equal(sRes1.body.weight, 'Aniqlab bo‘lmaydi');
-  assert.equal(sRes1.body.weight_kg,null);
+  assert.equal(sRes1.body.weight_kg, null);
+  assert.equal(sRes1.body.confidence,null);
 
   // Scan when AI is down -> 503 with masked key & Uzbek explanation
   aiDown = true;
@@ -401,8 +411,10 @@ test('8. AI Chat with images + structured feeding schedule extraction + auto VAP
   delete process.env.OPENAI_API_KEY;
   process.env.AI_PRIORITY = 'gemini';
 
-  global.fetch = async (url) => {if(url.includes('/rpc/consume_api_rate'))return jsonResponse(200,true);
+  global.fetch = async (url, opts = {}) => {
     if(url.includes('/rest/v1/terms_acceptances'))return jsonResponse(200,[{user_id:'accepted'}]);
+    if(url.includes('/rpc/reserve_ai_quota'))return jsonResponse(200,JSON.parse(opts.body).p_request);
+    if(url.includes('/rpc/finish_ai_quota'))return jsonResponse(200,true);
     if(url.includes('/rpc/consume_ai_quota')) return jsonResponse(200,true);
     if (url.endsWith('/auth/v1/user')) {
       return jsonResponse(200, { id: '77777777-7777-7777-7777-777777777777' });
@@ -494,14 +506,14 @@ test('10. Cybersecurity & Penetration audit: XSS prevention, Magic byte verifica
 test('11. Monthly quota denial and unavailable quota RPC fail closed',async()=>{
  resetEnv();const original=global.fetch;
  try{
- global.fetch=async url=>url.includes('/rpc/consume_api_rate')?jsonResponse(200,true):url.includes('/rest/v1/terms_acceptances')?jsonResponse(200,[{user_id:'accepted'}]):url.includes('/auth/v1/user')?jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'}):jsonResponse(200,false);
+ global.fetch=async url=>url.includes('/rest/v1/terms_acceptances')?jsonResponse(200,[{user_id:'accepted'}]):url.includes('/auth/v1/user')?jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'}):jsonResponse(200,false);
  let res=mockRes();await chatHandler({method:'POST',headers:{authorization:'Bearer token'},body:{message:'Salom'}},res);assert.equal(res.statusCode,429);
- lib.resetRateLimits();global.fetch=async url=>url.includes('/rpc/consume_api_rate')?jsonResponse(200,true):url.includes('/rest/v1/terms_acceptances')?jsonResponse(200,[{user_id:'accepted'}]):url.includes('/auth/v1/user')?jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'}):jsonResponse(404,{});
+ lib.resetRateLimits();global.fetch=async url=>url.includes('/rest/v1/terms_acceptances')?jsonResponse(200,[{user_id:'accepted'}]):url.includes('/auth/v1/user')?jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'}):jsonResponse(404,{});
  res=mockRes();await chatHandler({method:'POST',headers:{authorization:'Bearer token'},body:{message:'Salom'}},res);assert.equal(res.statusCode,503);
  }finally{global.fetch=original}
 });
 test('12. Non-admin cannot access AI diagnostics, including old query secret',async()=>{
- resetEnv();const original=global.fetch;global.fetch=async url=>url.includes('/rpc/consume_api_rate')?jsonResponse(200,true):url.includes('/rest/v1/terms_acceptances')?jsonResponse(200,[{user_id:'accepted'}]):url.includes('/auth/v1/user')?jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'}):jsonResponse(200,[{role:'user'}]);
+ resetEnv();const original=global.fetch;global.fetch=async url=>url.includes('/rest/v1/terms_acceptances')?jsonResponse(200,[{user_id:'accepted'}]):url.includes('/auth/v1/user')?jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'}):jsonResponse(200,[{role:'user'}]);
  try{const res=mockRes();await require('../api/ai-test')({method:'GET',url:'/api/ai-test?key=old',headers:{authorization:'Bearer token'}},res);assert.equal(res.statusCode,403)}finally{global.fetch=original}
 });
 
@@ -532,7 +544,7 @@ test('17. All email OTP forms accept complete 6–8 digit codes without truncati
 
 test('18. Seller handles validate input, prevent duplicates, and only write authenticated owner',async()=>{
  resetEnv();const handler=require('../api/sellers'),original=global.fetch;const uid='99999999-9999-9999-9999-999999999999';let writes=[];
- global.fetch=async(url,opts={})=>{if(url.includes('/rpc/consume_api_rate'))return jsonResponse(200,true);if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:uid});if(url.includes('nickname=eq.taken'))return jsonResponse(200,[{user_id:'other'}]);if(opts.method==='POST'){writes.push(JSON.parse(opts.body));return jsonResponse(200,[JSON.parse(opts.body)])}return jsonResponse(200,[])};
+ global.fetch=async(url,opts={})=>{if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:uid});if(url.includes('nickname=eq.taken'))return jsonResponse(200,[{user_id:'other'}]);if(opts.method==='POST'){writes.push(JSON.parse(opts.body));return jsonResponse(200,[JSON.parse(opts.body)])}return jsonResponse(200,[])};
  try{let res=mockRes();await handler({method:'POST',headers:{authorization:'Bearer token'},body:{action:'update',nickname:'bad,filter'}},res);assert.equal(res.statusCode,400);res=mockRes();await handler({method:'POST',headers:{authorization:'Bearer token'},body:{action:'update',nickname:'taken'}},res);assert.equal(res.statusCode,409);res=mockRes();await handler({method:'POST',headers:{authorization:'Bearer token'},body:{action:'update',nickname:'@My_Farm',display_name:'My Farm',bio:'Hello',user_id:'other'}},res);assert.equal(res.statusCode,200);assert.equal(writes[0].user_id,uid);assert.equal(writes[0].nickname,'my_farm');assert.equal(writes.length,1)}finally{global.fetch=original}
 });
 test('19. Shared listing and seller URLs retain persistent query identifiers',()=>{
@@ -543,15 +555,15 @@ test('20. Listing cards render prominent price, zoom and share while escaping ti
 });
 
 test('21. Operations refuse missing consent before AI or listing work',async()=>{
- resetEnv();const original=global.fetch;let aiCalls=0;global.fetch=async url=>{if(url.includes('/rpc/consume_api_rate'))return jsonResponse(200,true);if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'});if(url.includes('/terms_acceptances'))return jsonResponse(200,[]);aiCalls++;return jsonResponse(200,{})};
+ resetEnv();const original=global.fetch;let aiCalls=0;global.fetch=async url=>{if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'});if(url.includes('/terms_acceptances'))return jsonResponse(200,[]);aiCalls++;return jsonResponse(200,{})};
  try{const res=mockRes();await chatHandler({method:'POST',headers:{authorization:'Bearer token'},body:{message:'hello'}},res);assert.equal(res.statusCode,403);assert.equal(res.body.code,'CONSENT_REQUIRED');assert.equal(aiCalls,0)}finally{global.fetch=original}
 });
 test('22. Consent acceptance requires both unchecked-by-default approvals and persists only once',async()=>{
- resetEnv();const original=global.fetch;const handler=require('../api/consent');let saved=false,writes=0;global.fetch=async(url,opts={})=>{if(url.includes('/rpc/consume_api_rate'))return jsonResponse(200,true);if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'});if(opts.method==='POST'){saved=true;writes++;return jsonResponse(201,null)}return jsonResponse(200,saved?[{user_id:'accepted',terms_version:'2026-10-31',privacy_version:'2026-10-31',accepted_at:'test'}]:[])};
+ resetEnv();const original=global.fetch;const handler=require('../api/consent');let saved=false,writes=0;global.fetch=async(url,opts={})=>{if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'});if(opts.method==='POST'){saved=true;writes++;return jsonResponse(201,null)}return jsonResponse(200,saved?[{user_id:'accepted',terms_version:'2026-10-31',privacy_version:'2026-10-31',accepted_at:'test'}]:[])};
  try{let res=mockRes();await handler({method:'POST',headers:{authorization:'Bearer token'},body:{action:'accept',terms:true,privacy:false,version:'2026-10-31'}},res);assert.equal(res.statusCode,400);assert.equal(writes,0);for(let i=0;i<2;i++){res=mockRes();await handler({method:'POST',headers:{authorization:'Bearer token'},body:{action:'accept',terms:true,privacy:true,version:'2026-10-31'}},res);assert.equal(res.body.accepted,true)}assert.equal(writes,1)}finally{global.fetch=original}
 });
 test('23. Admin can revoke a paid plan through the existing atomic plan function',async()=>{
- resetEnv();const original=global.fetch;let payload;global.fetch=async(url,opts={})=>{if(url.includes('/rpc/consume_api_rate'))return jsonResponse(200,true);if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'});if(url.includes('/profiles?select=role'))return jsonResponse(200,[{role:'admin'}]);if(url.includes('/rpc/set_user_plan')){payload=JSON.parse(opts.body);return jsonResponse(204,null)}return jsonResponse(200,{})};try{const res=mockRes();await adminActionHandler({method:'POST',headers:{authorization:'Bearer token'},body:{action:'revoke_plan',user_id:'11111111-1111-1111-1111-111111111111'}},res);assert.equal(res.statusCode,200);assert.equal(payload.p_plan,'Bepul');assert.equal(payload.p_user,'11111111-1111-1111-1111-111111111111')}finally{global.fetch=original}
+ resetEnv();const original=global.fetch;let payload;global.fetch=async(url,opts={})=>{if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:'99999999-9999-9999-9999-999999999999'});if(url.includes('/profiles?select=role'))return jsonResponse(200,[{role:'admin'}]);if(url.includes('/rpc/set_user_plan')){payload=JSON.parse(opts.body);return jsonResponse(204,null)}return jsonResponse(200,{})};try{const res=mockRes();await adminActionHandler({method:'POST',headers:{authorization:'Bearer token'},body:{action:'revoke_plan',user_id:'11111111-1111-1111-1111-111111111111'}},res);assert.equal(res.statusCode,200);assert.equal(payload.p_plan,'Bepul');assert.equal(payload.p_user,'11111111-1111-1111-1111-111111111111')}finally{global.fetch=original}
 });
 
 
@@ -564,7 +576,7 @@ test('24. Fresh auth links show introduction; recovery and shared links remain i
 
 test('25. Restoring a session on the homepage does not skip the introduction',async()=>{
  const fs=require('node:fs'),vm=require('node:vm');const html=fs.readFileSync(require('node:path').join(__dirname,'../public/index.html'),'utf8');const code=html.slice(html.indexOf('async function onSession('),html.indexOf('function authErr('));
- for(const accepted of [false,true]){let rendered=0;const ctx={clearTimeout,tm:null,S:{},DB:null,KEYS:[],URLSearchParams,location:{hash:'',search:''},fresh:()=>{},render:()=>rendered++,api:async p=>p==='/api/consent'?{accepted}:{plan:'Bepul',limits:{}},SB:{from:table=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:table==='profiles'?{role:'user'}:null})})})})}};vm.createContext(ctx);vm.runInContext(code,ctx);await ctx.onSession({user:{id:'abc',email:'farmer@example.test',user_metadata:{}}});assert.equal(ctx.location.hash,'');assert.equal(rendered,1);assert.equal(ctx.S.consentRequired,!accepted);}
+ for(const accepted of [false,true]){let rendered=0;const ctx={S:{},DB:null,KEYS:[],URLSearchParams,location:{hash:'',search:''},fresh:()=>{},render:()=>rendered++,api:async p=>p==='/api/consent'?{accepted}:{plan:'Bepul',limits:{}},SB:{from:table=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:table==='profiles'?{role:'user'}:null})})})})}};vm.createContext(ctx);vm.runInContext(code,ctx);await ctx.onSession({user:{id:'abc',email:'farmer@example.test',user_metadata:{}}});assert.equal(ctx.location.hash,'');assert.equal(rendered,1);assert.equal(ctx.S.consentRequired,!accepted);}
 });
 
 test('26. Valid OTP is not consumed again after profile loading fails; consent wins redirect',async()=>{
@@ -586,7 +598,7 @@ test('29. Session restoration does not send a new OTP',async()=>{
 });
 
 test('30. Public feed limits fields and only queries approved active listings',async()=>{
- resetEnv();let query;const old=global.fetch;global.fetch=async url=>{if(url.includes('/rpc/consume_api_rate'))return jsonResponse(200,true);query=String(url);return jsonResponse(200,[{id:'listing',title:'Sigir',price:123,photos:['a.jpg'],phone:'private',seller_id:'private',status:'active'}])};try{const res=mockRes();await require('../api/market-feed')({method:'GET'},res);assert.equal(res.statusCode,200);assert.match(query,/status=eq.active/);assert.match(query,/limit=12/);assert.equal(res.body.listings[0].phone,undefined);assert.equal(res.body.listings[0].seller_id,undefined);assert.equal(res.body.listings[0].id,'listing');}finally{global.fetch=old;}
+ resetEnv();let query;const old=global.fetch;global.fetch=async url=>{query=String(url);return jsonResponse(200,[{id:'listing',title:'Sigir',price:123,photos:['a.jpg'],phone:'private',seller_id:'private',status:'active'}])};try{const res=mockRes();await require('../api/market-feed')({method:'GET'},res);assert.equal(res.statusCode,200);assert.match(query,/status=eq.active/);assert.match(query,/limit=12/);assert.equal(res.body.listings[0].phone,undefined);assert.equal(res.body.listings[0].seller_id,undefined);assert.equal(res.body.listings[0].id,'listing');}finally{global.fetch=old;}
 });
 
 test('31. Brand requires signed-in admin; public banners escape titles and have real detail links',()=>{
@@ -606,7 +618,7 @@ test('31. Brand requires signed-in admin; public banners escape titles and have 
 
 test('feed moderation rejects non-admin; malformed images never upload',async()=>{
  resetEnv();const handler=require('../api/feed-listings');let uploads=0;
- global.fetch=async(url,opts={})=>{if(url.includes('/rpc/consume_api_rate'))return jsonResponse(200,true);if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:'feed-owner'});if(url.includes('terms_acceptances'))return jsonResponse(200,[{user_id:'feed-owner'}]);if(url.includes('/storage/'))uploads++;return jsonResponse(200,[])};
+ global.fetch=async(url,opts={})=>{if(url.endsWith('/auth/v1/user'))return jsonResponse(200,{id:'feed-owner'});if(url.includes('terms_acceptances'))return jsonResponse(200,[{user_id:'feed-owner'}]);if(url.includes('/storage/'))uploads++;return jsonResponse(200,[])};
  const req=body=>({method:'POST',headers:{authorization:'Bearer test'},body});
  let res=mockRes();await handler(req({action:'approve',id:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'}),res);assert.equal(res.statusCode,403);
  res=mockRes();await handler(req({action:'create',title:'Pichan',category:'Pichan',price:100,unit:'kg',phone:'+998901234567',region:'Toshkent',images:'invalid'}),res);assert.equal(res.statusCode,400);assert.equal(uploads,0);
@@ -615,7 +627,7 @@ test('feed moderation rejects non-admin; malformed images never upload',async()=
 test('reminder delivery marks only successful sends and releases failed claims',async()=>{
  const push=require('../api/_push'),handler=require('../api/send-reminders');const saved={send:push.send,allowed:push.cronAllowed},now=Date.now;let writes=[];
  try{Date.now=()=>Date.parse('2026-11-01T03:00:00Z');push.cronAllowed=async()=>true;
- global.fetch=async(url,opts={})=>{if(url.includes('/rpc/consume_api_rate'))return jsonResponse(200,true);if(url.includes('user_id=gt.')||url.includes('endpoint=gt.'))return jsonResponse(200,[]);if(url.includes('app_state?'))return jsonResponse(200,[{user_id:'user',json:{rem:[['Yem','2026-11-01','08:00',0]]}}]);if(url.includes('push_subs?'))return jsonResponse(200,[{endpoint:'https://fcm.googleapis.com/test',user_id:'user',sub:{endpoint:'https://fcm.googleapis.com/test'}}]);if(url.includes('claim_reminder'))return jsonResponse(200,true);if(opts.method==='PATCH'){writes.push(JSON.parse(opts.body));return jsonResponse(200,null)}throw Error('Unexpected '+url)};
+ global.fetch=async(url,opts={})=>{if(url.includes('get_reminder_inputs'))return jsonResponse(200,[{user_id:'user',rem:[['Yem','2026-11-01','08:00',0]]}]);if(url.includes('push_subs?'))return jsonResponse(200,[{user_id:'user',sub:{endpoint:'https://fcm.googleapis.com/test'}}]);if(url.includes('claim_reminder'))return jsonResponse(200,true);if(opts.method==='PATCH'){writes.push(JSON.parse(opts.body));return jsonResponse(200,null)}throw Error('Unexpected '+url)};
  push.send=async()=>{};let res=mockRes();await handler({headers:{}},res);assert.equal(res.body.sent,1);assert.equal(writes[0].status,'sent');
  writes=[];push.send=async()=>{throw Error('offline')};res=mockRes();await handler({headers:{}},res);assert.equal(res.body.sent,0);assert.equal(res.body.failed,1);assert.equal(writes[0].locked_until,new Date(0).toISOString());assert.ok(!writes.some(x=>x.status==='sent'));
  }finally{Date.now=now;push.send=saved.send;push.cronAllowed=saved.allowed}

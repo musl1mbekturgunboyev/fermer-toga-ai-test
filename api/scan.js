@@ -18,13 +18,14 @@ module.exports = async (req, res) => {
   const b = req.body || {};
   const imgs = (Array.isArray(b.images) ? b.images : [])
     .slice(0, 3)
-    .filter(x => require('./_image').imageBuffer(x));
+    .filter(x => typeof x === 'string' && /^data:image\/(jpeg|png);base64,/.test(x) && x.length < 1500000);
 
   if (!imgs.length) {
     return res.status(400).json({ error: 'Rasm yuklanmadi. JPG yoki PNG formatidan foydalaning.' });
   }
 
-  if(!await require('./_billing').quota(u.id,'scan',res))return;
+  const reservation=await require('./_billing').reserveQuota(u.id,'scan',res);
+  if(!reservation)return;
   const lang = String(b.lang || 'uz').toLowerCase();
   const langPrompt = LANG_MAP[lang] || LANG_MAP.uz;
 
@@ -81,6 +82,7 @@ Return the following JSON structure; unknown text is "${unknown}" and unavailabl
     const text = value => typeof value === 'string' && value.trim() ? value.trim().slice(0, 1500) : unknown;
     const strings = value => Array.isArray(value) ? value.filter(x => typeof x === 'string' && x.trim()).slice(0, 8).map(x => x.trim().slice(0, 700)) : [];
     if (!d.assessable) {
+      await reservation.release();
       return res.status(422).json({
         error: ({ uz: 'Bu rasmdan ishonchli baholab bo‘lmaydi. Bitta jonivorni yorug‘ joyda, butun tanasi yon tomondan ko‘rinadigan qilib qayta suratga oling.', ru: 'По этому фото оценка невозможна. Снимите одно животное целиком сбоку при хорошем освещении.', en: 'Cannot assess this photo. Retake one animal in good light with its entire body visible from the side.', kk: 'Суретті бағалау мүмкін емес. Бір жануарды жарықта толық қырынан түсіріңіз.', ky: 'Сүрөттү баалоо мүмкүн эмес. Бир жаныбарды жарыкта толук капталынан тартыңыз.' })[lang] || unknown,
         code: 'SCAN_IMAGE_UNASSESSABLE', next: strings(d.next)
@@ -97,6 +99,7 @@ Return the following JSON structure; unknown text is "${unknown}" and unavailabl
     const kg = validWeight ? Math.round((lo + hi) / 2) : null;
     const healthUnknown = ({ uz: 'Rasmdan sog‘liq holatini aniqlab bo‘lmaydi', ru: 'Здоровье нельзя определить по фото', en: 'Health cannot be determined from photos', kk: 'Денсаулықты суреттен анықтау мүмкін емес', ky: 'Ден соолукту сүрөттөн аныктоо мүмкүн эмес' })[lang] || unknown;
     console.info('Scan timing', JSON.stringify({ provider: r.provider, model: r.model || null, analysis_ms: Date.now() - started, images: imgs.length }));
+    await reservation.commit();
     res.json({
       species: text(d.species), breed: text(d.breed), sex: text(d.sex), age: text(d.age),
       weight: validWeight ? text(d.weight) : unknown, weight_kg: kg,
@@ -111,6 +114,7 @@ Return the following JSON structure; unknown text is "${unknown}" and unavailabl
       provider: r.provider
     });
   } catch (e) {
+    await reservation.release();
     console.error('Scan xato:', e.message || e);
     res.status(503).json({ error: ai.explain(e) });
   }
