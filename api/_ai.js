@@ -53,7 +53,7 @@ function geminiThinkingConfig(model) {
   return {};
 }
 
-async function tryModels(name, list, deadline, fn) {
+async function tryModels(name, list, deadline, fn, scan) {
   let last;
   const now = Date.now();
   const avail = list.filter(m => !(badModel[name + ':' + m] > now));
@@ -75,7 +75,10 @@ async function tryModels(name, list, deadline, fn) {
         e.model = e.model || m;
         // Quota/auth errors must reach the backup provider immediately.
         if ([401, 402, 403, 429].includes(e.status)) throw e;
-        if (isTimeout(e)) throw e;
+        if (isTimeout(e)) {
+          if (scan) break;
+          throw e;
+        }
         if (e.status === 404 || /not found|not supported for generateContent|shut down/i.test(e.message || '')) {
           badModel[name + ':' + m] = Date.now() + 3600000;
           break;
@@ -101,12 +104,12 @@ const P = {
   openai: {
     key: () => cleanKey(process.env.OPENAI_API_KEY),
     models: () => models('OPENAI_MODEL', DEFAULT_OPENAI_MODELS),
-    call({ system, user, images, json, max, deadline }) {
+    call({ system, user, images, json, max, deadline, scan }) {
       const key = P.openai.key();
       const content = images && images.length
         ? [{ type: 'text', text: user }, ...images.map(u => ({ type: 'image_url', image_url: { url: u, detail: 'high' } }))]
         : user;
-      const attemptMax = Number(process.env.AI_ATTEMPT_MS) || 14000;
+      const attemptMax = (scan && (Number(process.env.AI_SCAN_ATTEMPT_MS) || 19000)) || Number(process.env.AI_ATTEMPT_MS) || 14000;
       return tryModels('openai', P.openai.models(), deadline, async model => {
         const rem = deadline ? deadline - Date.now() - 500 : attemptMax;
         if (rem < 1500) throw Object.assign(new Error('Vaqt tugadi'), { name: 'TimeoutError', status: 504 });
@@ -122,18 +125,18 @@ const P = {
             messages: [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content }]
           })
         });
-        const j = await r.json().catch(() => ({}));
+        const j = await r.json().catch(e => { if (isTimeout(e)) throw e; return {}; });
         if (!r.ok) throw fail(r, j, model);
         const t = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
         if (!t) throw Object.assign(new Error('Bo‘sh javob'), { status: 502 });
         return t;
-      });
+      }, scan);
     }
   },
   gemini: {
     key: () => cleanKey(process.env.GEMINI_API_KEY),
     models: () => models('GEMINI_MODEL', DEFAULT_GEMINI_MODELS),
-    call({ system, user, images, json, max, deadline, fast }) {
+    call({ system, user, images, json, max, deadline, fast, scan }) {
       const key = P.gemini.key();
       const imgParts = (images || []).map(u => {
         const m = /^data:([^;]+);base64,(.+)$/s.exec(u || '');
@@ -144,7 +147,7 @@ const P = {
       const baseModels = P.gemini.models();
       const fastModel = cleanKey(process.env.GEMINI_FAST_MODEL) || baseModels[0];
       const list = fast ? [...new Set([fastModel, ...baseModels])] : baseModels;
-      const attemptMax = Number(process.env.AI_ATTEMPT_MS) || (fast ? 12000 : 15000);
+      const attemptMax = (scan && (Number(process.env.AI_SCAN_ATTEMPT_MS) || 19000)) || Number(process.env.AI_ATTEMPT_MS) || (fast ? 12000 : 15000);
 
       return tryModels('gemini', list, deadline, async model => {
         const rem = deadline ? deadline - Date.now() - 500 : attemptMax;
@@ -167,7 +170,7 @@ const P = {
           headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
           body: JSON.stringify(body)
         });
-        const j = await r.json().catch(() => ({}));
+        const j = await r.json().catch(e => { if (isTimeout(e)) throw e; return {}; });
         if (!r.ok) throw fail(r, j, model);
         const cand = j.candidates && j.candidates[0];
         const candParts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
@@ -178,7 +181,7 @@ const P = {
           throw Object.assign(new Error('Bo‘sh javob' + (blockReason ? ' (' + blockReason + ')' : ' (xavfsizlik filtri bo‘lishi mumkin)')), { status: 502 });
         }
         return t;
-      });
+      }, scan);
     }
   }
 };
@@ -240,7 +243,7 @@ async function run(opts, parse) {
 }
 
 exports.chat = (system, user, max, images) => run({ system, user, images, max: max || 700 });
-exports.vision = (system, user, images, max, fast) => run({ system, user, images, json: true, max: max || 650, fast: !!fast }, parseJson);
+exports.vision = (system, user, images, max, fast, scan = false) => run({ system, user, images, json: true, max: max || 650, fast: !!fast, scan }, parseJson);
 exports.parseJson = parseJson;
 exports.mask = mask;
 exports.resetState = () => {
