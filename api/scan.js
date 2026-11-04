@@ -62,8 +62,8 @@ Rules:
 - Never label an animal healthy or disease-free. health_status must state that health cannot be determined from photos. health_note may describe visible concerns without diagnosis.
 - Suggest the closest-looking breed or type when at least two distinguishing traits support it and list them in breed_evidence. If coat color alone is visible, use a descriptive type or unknown. Never assert pedigree or pure breed from photos.
 - Sex is unknown unless diagnostic anatomy is clearly visible. Age from body size alone is unreliable; preserve declared age as owner-reported, otherwise return a broad life stage (young, adolescent, adult) when visible development supports it. A numeric age range for cattle is optional only when a clear close-up shows the lower incisors and you can explain their eruption or wear. Set age_basis to teeth only in that case; otherwise use stage. Never estimate precise age from body shape. Explain the visible evidence in age_evidence.
-- For a single identifiable animal with a clear near-side view and fully visible body, you may offer a broad visual weight range if species, maturity and build are evident. The range is a low-confidence ballpark without a scale reference, not a measured weight. Explain the visible basis in weight_evidence. Never invent body dimensions or use a breed average as this animal’s measured weight. If view or evidence is insufficient use null. For unscaled photos give a wide range, not a midpoint or narrow interval.
-- BCS requires species-appropriate assessment and often palpation; fleece, hair and camera angle hide condition. Use unknown if landmarks are insufficient. For dairy cows inspect the hips, loin, short ribs and tailhead. Return a coarse score or range using the species-appropriate scale only when at least two relevant landmarks are clearly visible and describe them in bcs_evidence. Never default to 3/5. For fleece-covered sheep, prefer an on-animal palpation recommendation. Any visual BCS must be labelled preliminary with its scale.
+- For a single identifiable animal with a clear near-side view and fully visible body, you may offer a broad visual weight range if species, maturity and build are evident. The range is a low-confidence ballpark without a scale reference, not a measured weight. Explain the visible basis in weight_evidence. Never invent body dimensions or use a breed average as this animal’s measured weight. If view or evidence is insufficient use null. Use rounded endpoints and a range proportionate to the visible evidence; do not target a fixed percentage, copy example values, or imply measured precision.
+- BCS requires species-appropriate assessment and often palpation; fleece, hair and camera angle hide condition. Use unknown if landmarks are insufficient. For dairy cows inspect the hips, loin, short ribs and tailhead. Return a coarse score or range using the species-appropriate scale when visible landmarks support it and describe each in bcs_evidence. With only one informative landmark, give a wider preliminary range or a qualitative observation and state what angle would help; avoid a single score. Never default to 3/5. For fleece-covered sheep, prefer an on-animal palpation recommendation. Any visual BCS must be labelled preliminary with its scale.
 - daily_feed_kg must be unknown: a numeric ration requires reliable weight, species, production stage, feed dry matter and health history. Give only broad non-prescriptive husbandry observations; no pharmaceutical doses, treatment or vaccination schedules.
 - confidence must be null: no calibrated accuracy percentage is available. Instead set assessment_quality to low/medium/high for image usability, not diagnostic certainty.
 - Provide missing_information and limitations. Keep responses concise and internally consistent. Review uncertainties before returning.`;
@@ -116,8 +116,7 @@ Return the following JSON structure; unknown text is "${unknown}" and unavailabl
     const weightEvidence = typeof d.weight_evidence === 'string' ? d.weight_evidence.trim().slice(0, 400) : '';
     const validWeight = q.full_body_visible === true && !!weightEvidence
       && positive(d.weight_min_kg) && positive(d.weight_max_kg)
-      && d.weight_max_kg <= 2500 && d.weight_max_kg > d.weight_min_kg
-      && (q.reliable_scale_visible === true || d.weight_max_kg >= d.weight_min_kg * 1.3);
+      && d.weight_max_kg <= 2500 && d.weight_max_kg > d.weight_min_kg;
     const lo = validWeight ? d.weight_min_kg : null;
     const hi = validWeight ? d.weight_max_kg : null;
     const kg = measuredWeight || tapeWeight;
@@ -137,7 +136,7 @@ Return the following JSON structure; unknown text is "${unknown}" and unavailabl
       weight_min_kg: kg ? null : lo, weight_max_kg: kg ? null : hi,
       weight_evidence: !kg && validWeight ? weightEvidence : null,
       weight_method: measuredWeight ? 'owner_reported_scale' : tapeWeight ? 'tape_estimate' : validWeight ? 'rough_visual_estimate_not_measurement' : 'insufficient_evidence',
-      bcs: bcsEvidence.length >= 2 ? text(d.bcs) : unknown, bcs_evidence: bcsEvidence, health_status: healthUnknown, health_note: text(d.health_note),
+      bcs: bcsEvidence.length ? text(d.bcs) : unknown, bcs_evidence: bcsEvidence, health_status: healthUnknown, health_note: text(d.health_note),
       vacc_recommend: text(d.vacc_recommend), daily_feed_kg: unknown,
       confidence: null, confidence_calibrated: false,
       assessment_quality: ['low', 'medium', 'high'].includes(d.assessment_quality) ? d.assessment_quality : 'low',
