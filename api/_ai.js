@@ -148,8 +148,10 @@ const P = {
       const baseModels = P.gemini.models();
       const fastModel = cleanKey(process.env.GEMINI_FAST_MODEL) || baseModels[0];
       const list = fast ? [...new Set([fastModel, ...baseModels])] : baseModels;
-      if (scan && list.length === 1 && !list.includes(DEFAULT_GEMINI_MODELS[0])) {
-        list.push(DEFAULT_GEMINI_MODELS[0]);
+      if (scan && !cleanKey(process.env.GEMINI_FALLBACK_MODELS)) {
+        for (const fallback of [DEFAULT_GEMINI_MODELS[0], 'gemini-2.5-flash']) {
+          if (!list.includes(fallback)) list.push(fallback);
+        }
       }
       const attemptMax = (scan && (Number(process.env.AI_SCAN_ATTEMPT_MS) || 19000)) || Number(process.env.AI_ATTEMPT_MS) || (fast ? 12000 : 15000);
 
