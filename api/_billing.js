@@ -3,22 +3,4 @@ function headers(){const k=process.env.SUPABASE_SERVICE_ROLE_KEY;return {apikey:
 async function db(path,options={}){const r=await fetch(process.env.SUPABASE_URL+'/rest/v1/'+path,{...options,headers:{...headers(),...options.headers}});if(!r.ok)throw new Error('Baza sozlamalarini administrator tekshirishi kerak');if(r.status===204)return null;const raw=await r.text();if(!raw.trim())return null;try{return JSON.parse(raw)}catch{throw new Error('Baza noto‘g‘ri javob qaytardi')}}
 async function account(id){const rows=await db('subscriptions?select=plan,period_end&status=eq.active&owner_id=eq.'+encodeURIComponent(id));if(!Array.isArray(rows))throw new Error('Tarifni tekshirib bo‘lmadi');const active=rows.filter(x=>PLANS[x.plan]&&new Date(x.period_end)>new Date());const plan=active.some(x=>x.plan==='Ferma')?'Ferma':active.some(x=>x.plan==='Pro')?'Pro':'Bepul';return {plan,limits:PLANS[plan]}}
 async function quota(id,kind,res){try{const result=await db('rpc/consume_ai_quota',{method:'POST',body:JSON.stringify({p_user:id,p_kind:kind})});if(result!==true){res.status(429).json({error:'Oylik AI limiti tugadi. Tarifni yangilang.'});return false}return true}catch(e){res.status(503).json({error:'Tarif himoyasi bazada sozlanmagan. Administratorga murojaat qiling.'});return false}}
-async function reserveQuota(id,kind,res){
- const request=require('crypto').randomUUID();
- try{
-  const token=await db('rpc/reserve_ai_quota',{method:'POST',body:JSON.stringify({p_user:id,p_kind:kind,p_request:request})});
-  if(!token){res.status(429).json({error:'Oylik AI limiti tugadi. Tarifni yangilang.'});return null;}
-  if(token!==request)throw Error('Invalid reservation');
-  let settled=false;
-  async function finish(success){
-   if(settled)return;
-   const ok=await db('rpc/finish_ai_quota',{method:'POST',body:JSON.stringify({p_user:id,p_request:request,p_success:success})});
-   if(ok!==true)throw Error('AI hisobini yakunlab bo‘lmadi');
-   settled=true;
-  }
-  return {id:request,commit:()=>finish(true),release:async()=>{
-   try{await finish(false)}catch(_){console.error('AI reservation release failed; expires automatically');}
-  }};
- }catch(_){res.status(503).json({error:'AI limit himoyasi bazada sozlanmagan. Administratorga murojaat qiling.'});return null;}
-}
-module.exports={PLANS,db,account,quota,reserveQuota};
+module.exports={PLANS,db,account,quota};
