@@ -460,8 +460,7 @@ function bind(h){
       stampScanToModules(r);
       S.lastScan=r;
       await persistNow();
-      $('#res').innerHTML=resultCard(r);
-      toast("✅ Ma’lumotlar Pasport, Vazn, Ozuqa, Sog‘liq, Emlash va AI Chatga muhrlandi!")}
+      location.hash='#/assistant'}
     catch(x){$('#res').innerHTML='<p class="disc">'+esc((x&&x.message)||'AI tahlilini amalga oshirishda muammo yuz berdi. Iltimos, rasmni qayta yuklang.')+'</p>'}};
   const cf=$('#cf');if(cf){
     const cim=$('#cim'),cprev=$('#cprev'),cbtn=$('#cimgbtn');
@@ -639,8 +638,9 @@ function stampScanToModules(r){
   // A photo is not proof of vaccination, nor enough evidence for a numeric ration.
   // Preserve existing vaccination history, reminders and feed plans unchanged.
   if(!S.chatLog)S.chatLog=[];
-  const autoGreeting=`📋 ${aname} (${aid}) uchun dastlabki vizual kuzatuv:\n• Tur va zot: ${sp} (${r.breed||unknown})\n• Yosh: ${r.age||unknown}\n• Vazn: ${wstr}${r.weight_method==='owner_reported_scale'?'':' — o‘lchov emas'}\n• Tana holati: ${r.bcs||unknown}\n• ${r.health_status||'Sog‘liq rasmdan aniqlanmaydi'}\n\nBu natija tashxis yoki tasdiqlangan fakt emas. Emlash tarixi va ozuqa rejasi avtomatik o‘zgartirilmadi.\n\nAniqroq maslahat uchun tarozida o‘lchangan vazn, ma’lum yosh, boqish maqsadi va mavjud ozuqalarni yozing.`;
-  S.chatLog.push({role:'a',text:autoGreeting,imgs:r.img?[r.img]:[]});
+  const feeds=(r.feed||[]).join(', ')||unknown;
+  const autoGreeting=`📋 ${aname} (${aid}) uchun AI Scan taxmini:\n• Turi: ${sp}\n• Zoti: ${r.breed||unknown}\n• Jinsi: ${r.sex||unknown}\n• Yoshi: ${r.age||unknown}\n• Vazni: ${wstr}\n• Tana holati: ${r.bcs||unknown}\n• Mos kelishi mumkin bo‘lgan ozuqalar: ${feeds}\n\nSizda qanday ozuqa mahsulotlari bor va qanday natijaga erishmoqchisiz? Masalan, sog‘lom o‘sish, vazn yig‘ish yoki sutni ko‘paytirish.`;
+  S.chatLog.push({role:'a',text:autoGreeting,imgs:r.img?[r.img]:[],scanAid:aid});
 }
 
 function applyFeedSchedule(sched,showToast=true){
@@ -658,7 +658,7 @@ AIService.scan=async o=>{const files=[...o.files].slice(0,3);const bl=await Prom
   const thumb=await thumbB64(files[0]);
   try{const {data}=await SB.auth.getSession();SB.storage.from('animal-photos').upload(data.session.user.id+'/'+Date.now()+'.jpg',bl[0],{contentType:'image/jpeg'})}catch(_){}
   const j=await api('/api/scan',{images:await Promise.all(bl.map(b64)),type:o.type,age:o.age,measured_weight_kg:o.measuredWeight,girth_cm:o.girth,length_cm:o.length,lang:S.lang||localStorage.getItem('ft_lang')||'uz'});return {...j,img:thumb,mock:false}};
-AIService.chat=async(q,imgs)=>{const hist=(S.chatLog||[]).slice(-6).map(m=>(m.role=='u'?'Mijoz: ':'AI: ')+m.text).join('\n');const anCtx=S.animals.slice(0,12).map(a=>`${a.name} (${a.id}): ${a.type}, zot ${a.breed}, yosh ${a.age}, vazn ${a.w}, holati ${a.h}`).join('; ');return await api('/api/chat',{message:q,images:imgs||[],context:`Hayvonlar: ${anCtx}\nOxirgi suhbat:\n${hist}`})};
+AIService.chat=async(q,imgs)=>{const messages=S.chatLog||[];const scan=messages.slice().reverse().find(m=>m.scanAid);const hist=messages.slice(-6).filter(m=>m!==scan).map(m=>(m.role=='u'?'Mijoz: ':'AI: ')+m.text).join('\n');const anCtx=S.animals.slice(0,12).map(a=>`${a.name} (${a.id}): ${a.type}, zot ${a.breed}, yosh ${a.age}, vazn ${a.w}, holati ${a.h}`).join('; ');return await api('/api/chat',{message:q,images:imgs||[],lang:S.lang||localStorage.getItem('ft_lang')||'uz',context:`${scan?'Oxirgi skan (taxminiy):\n'+scan.text.slice(0,1000)+'\n':''}Oxirgi suhbat:\n${hist.slice(-950)}\nHayvonlar: ${anCtx.slice(0,450)}`})};
 const KEYS=['animals','weight','health','vacc','farm','rem','lang','fp','chatLog'];
 const fresh=()=>Object.assign(S,{animals:[],weight:[],health:[],vacc:[],rem:[],farm:{fn:'',fr:'',fd:''},plan:'Bepul',fp:null,chatLog:[]});
 async function onSession(se){if(S.sessionReady===se.user.id&&DB)return;if(S.sessionLoading)return S.sessionLoading;S.sessionLoading=loadSession(se);try{return await S.sessionLoading;}catch(e){DB=null;S.sessionReady=null;throw e;}finally{S.sessionLoading=null;}}

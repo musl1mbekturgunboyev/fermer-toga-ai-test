@@ -104,7 +104,7 @@ const P = {
   openai: {
     key: () => cleanKey(process.env.OPENAI_API_KEY),
     models: () => models('OPENAI_MODEL', DEFAULT_OPENAI_MODELS),
-    call({ system, user, images, json, max, deadline, scan }) {
+    call({ system, user, images, json, max, deadline, scan, parseScan }) {
       const key = P.openai.key();
       const content = images && images.length
         ? [{ type: 'text', text: user }, ...images.map(u => ({ type: 'image_url', image_url: { url: u, detail: 'high' } }))]
@@ -129,14 +129,14 @@ const P = {
         if (!r.ok) throw fail(r, j, model);
         const t = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
         if (!t) throw Object.assign(new Error('Bo‘sh javob'), { status: 502 });
-        return t;
+        return parseScan ? parseScan(t) : t;
       }, scan);
     }
   },
   gemini: {
     key: () => cleanKey(process.env.GEMINI_API_KEY),
     models: () => models('GEMINI_MODEL', DEFAULT_GEMINI_MODELS),
-    call({ system, user, images, json, max, deadline, fast, scan }) {
+    call({ system, user, images, json, max, deadline, fast, scan, parseScan }) {
       const key = P.gemini.key();
       const imgParts = (images || []).map(u => {
         const m = /^data:([^;]+);base64,(.+)$/s.exec(u || '');
@@ -180,7 +180,7 @@ const P = {
           const blockReason = (j.promptFeedback && j.promptFeedback.blockReason) || (cand && cand.finishReason) || '';
           throw Object.assign(new Error('Bo‘sh javob' + (blockReason ? ' (' + blockReason + ')' : ' (xavfsizlik filtri bo‘lishi mumkin)')), { status: 502 });
         }
-        return t;
+        return parseScan ? parseScan(t) : t;
       }, scan);
     }
   }
@@ -199,6 +199,15 @@ function parseJson(raw) {
   } catch (_) {
     throw Object.assign(new Error('AI javobini o‘qib bo‘lmadi (JSON xato)'), { status: 502 });
   }
+}
+
+function parseScanJson(raw) {
+  const data = parseJson(raw);
+  if (typeof data.assessable !== 'boolean' ||
+      (data.assessable && (typeof data.species !== 'string' || !data.species.trim()))) {
+    throw Object.assign(new Error('AI skan natijasi to‘liq emas'), { status: 502 });
+  }
+  return data;
 }
 
 async function run(opts, parse) {
@@ -225,8 +234,8 @@ async function run(opts, parse) {
       // Leave a fair share of the deadline for every remaining provider.
       const remaining = list.length - list.indexOf(n);
       const providerDeadline = Date.now() + Math.floor((opts.deadline - Date.now()) / remaining);
-      const text = await P[n].call({ ...opts, deadline: providerDeadline });
-      const data = parse ? parse(text) : text;
+      const output = await P[n].call({ ...opts, deadline: providerDeadline, parseScan: opts.scan ? parse : undefined });
+      const data = parse && !opts.scan ? parse(output) : output;
       delete cool[n];
       return { provider: n, model: good[n], data };
     } catch (e) {
@@ -243,7 +252,7 @@ async function run(opts, parse) {
 }
 
 exports.chat = (system, user, max, images) => run({ system, user, images, max: max || 700 });
-exports.vision = (system, user, images, max, fast, scan = false) => run({ system, user, images, json: true, max: max || 650, fast: !!fast, scan }, parseJson);
+exports.vision = (system, user, images, max, fast, scan = false) => run({ system, user, images, json: true, max: max || 650, fast: !!fast, scan }, scan ? parseScanJson : parseJson);
 exports.parseJson = parseJson;
 exports.mask = mask;
 exports.resetState = () => {

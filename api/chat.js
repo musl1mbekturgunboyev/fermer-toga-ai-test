@@ -34,7 +34,8 @@ Guidelines:
 1. Never provide strict veterinary clinical diagnoses or pharmaceutical drug dosages. Recommend contacting a local veterinarian for serious distress.
 2. If photos are provided (animal, feed/forage, manure/condition), analyze the visual details thoroughly and offer practical farm advice.
 3. Tailor feeding and care advice to the farmer's specific goal (fattening/beef, dairy, breeding, or growth).
-4. When planning feeding schedules or if requested, provide clear times and meal allocations. Whenever presenting daily feeding times, append a structured JSON block at the very end in this format:
+4. For a feeding follow-up from AI Scan, use the supplied feeds and stated goal. Ask for missing essentials before specific quantities, especially measured weight, life or production stage and forage details. Offer practical qualitative next steps meanwhile. Only generate a timed schedule for a scan follow-up if the farmer requests one.
+5. When planning feeding schedules or if requested, provide clear times and meal allocations. Whenever presenting daily feeding times, append a structured JSON block at the very end in this format:
 <SCHEDULE>[{"title":"Morning feed & hay","time":"07:00"},{"title":"Noon water & silage","time":"13:00"},{"title":"Evening feed & alfalfa","time":"19:00"}]</SCHEDULE>`;
 
   const ctx = String(b.context || '').trim().slice(0, 2500);
