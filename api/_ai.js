@@ -56,7 +56,8 @@ function geminiThinkingConfig(model) {
 async function tryModels(name, list, deadline, fn, scan) {
   let last;
   const now = Date.now();
-  const avail = list.filter(m => !(badModel[name + ':' + m] > now));
+  const modelKey = m => (scan ? 'scan:' : '') + name + ':' + m;
+  const avail = list.filter(m => !(badModel[modelKey(m)] > now));
   const pool = avail.length ? avail : list;
   const ordered = pool;
 
@@ -68,7 +69,7 @@ async function tryModels(name, list, deadline, fn, scan) {
       try {
         const res = await fn(m, attempt);
         good[name] = m;
-        delete badModel[name + ':' + m];
+        delete badModel[modelKey(m)];
         return res;
       } catch (e) {
         last = e;
@@ -80,7 +81,7 @@ async function tryModels(name, list, deadline, fn, scan) {
           throw e;
         }
         if (e.status === 404 || /not found|not supported for generateContent|shut down/i.test(e.message || '')) {
-          badModel[name + ':' + m] = Date.now() + 3600000;
+          badModel[modelKey(m)] = Date.now() + 3600000;
           break;
         }
         if (e.status === 503 && attempt === 0 && (!deadline || Date.now() < deadline - 4000)) {
@@ -89,7 +90,7 @@ async function tryModels(name, list, deadline, fn, scan) {
           continue;
         }
         if (e.status === 429 || isTimeout(e) || [500, 502, 503, 504].includes(e.status)) {
-          badModel[name + ':' + m] = Date.now() + (e.status === 429 ? 60000 : 20000);
+          if (!scan) badModel[modelKey(m)] = Date.now() + 20000;
           break;
         }
         if (!SWITCH.includes(e.status) && !isTimeout(e)) throw e;
@@ -220,9 +221,10 @@ async function run(opts, parse) {
   if (!order.length) throw Object.assign(new Error('AI kalitlari sozlanmagan'), { code: 'no_key', status: 503 });
 
   const now = Date.now();
-  const ready = order.filter(n => !(cool[n] > now));
+  const cooldownKey = n => opts.scan ? 'scan:' + n : n;
+  const ready = order.filter(n => !(cool[cooldownKey(n)] > now));
   if (!ready.length) {
-    const wait = Math.max(1000, Math.min(...order.map(n => cool[n])) - now);
+    const wait = Math.max(1000, Math.min(...order.map(n => cool[cooldownKey(n)])) - now);
     throw Object.assign(new Error('AI vaqtincha cheklangan. Birozdan keyin qayta urinib ko‘ring.'), { status: 429, retryMs: wait });
   }
   const list = ready;
@@ -236,7 +238,7 @@ async function run(opts, parse) {
       const providerDeadline = Date.now() + Math.floor((opts.deadline - Date.now()) / remaining);
       const output = await P[n].call({ ...opts, deadline: providerDeadline, parseScan: opts.scan ? parse : undefined });
       const data = parse && !opts.scan ? parse(output) : output;
-      delete cool[n];
+      delete cool[cooldownKey(n)];
       return { provider: n, model: good[n], data };
     } catch (e) {
       last = e;
@@ -244,7 +246,9 @@ async function run(opts, parse) {
       tried.push(n + ' ' + code + ': ' + mask(e.message));
       e.tried = tried;
       const isAuthOrQuota = [401, 402, 403, 429].includes(e.status);
-      cool[n] = Date.now() + (e.retryMs || (isAuthOrQuota ? 60000 : 15000));
+      if (!opts.scan || isAuthOrQuota) {
+        cool[cooldownKey(n)] = Date.now() + (e.retryMs || (isAuthOrQuota ? 60000 : 15000));
+      }
       console.error('AI xato [' + n + ']', JSON.stringify({ status: code, model: e.model || null, quota: e.quota || [], retryMs: e.retryMs || null, message: mask(e.message) }));
     }
   }
@@ -263,7 +267,7 @@ exports.resetState = () => {
 exports.status = () => Object.keys(P).map(n => ({
   name: n,
   enabled: !!P[n].key(),
-  cooldown: !!(cool[n] && cool[n] > Date.now()),
+  cooldown: Math.max(cool[n] || 0, cool['scan:' + n] || 0) > Date.now(),
   model: good[n] || null
 }));
 
@@ -283,8 +287,8 @@ exports.explain = e => {
             ? 'AI kaliti yaroqsiz yoki unga ruxsat yo‘q. Administrator kalitni tekshirsin.'
             : st === 404 || /is not found|not supported for generateContent|shut down/i.test(m)
               ? 'AI modeli topilmadi yoki eskirgan. Administrator model nomini yangilashi kerak.'
-              : /Bo‘sh javob|JSON/i.test(m)
-                ? 'AI javobni to‘liq qaytarmadi (xavfsizlik filtri yoki rasm noaniq bo‘lishi mumkin). Boshqa aniqroq rasm bilan urinib ko‘ring.'
+              : /Bo‘sh javob|JSON|skan natijasi to‘liq emas/i.test(m)
+                ? 'AI xizmati to‘liq javob qaytarmadi. Qayta urinib ko‘ring.'
                 : isTimeout(e) || st === 504
                   ? 'AI javobi kechikdi. Rasmni kichraytirib yoki birozdan keyin qayta urinib ko‘ring.'
                   : 'AI xizmati hozir band. Birozdan keyin qayta urinib ko‘ring.';
