@@ -29,7 +29,7 @@ const fail = (r, j, model) => {
 };
 
 const cleanKey = k => String(k || '').trim().replace(/^["']|["']$/g, '');
-// An explicit model is authoritative. Add alternatives only via *_FALLBACK_MODELS.
+// Explicit models take precedence. Gemini scans can also use the default model as a fallback.
 const models = (env, def) => {
   const configured = cleanKey(process.env[env]);
   const extra = cleanKey(process.env[env.replace(/_MODEL$/, '_FALLBACK_MODELS')])
@@ -84,7 +84,7 @@ async function tryModels(name, list, deadline, fn, scan) {
           badModel[modelKey(m)] = Date.now() + 3600000;
           break;
         }
-        if (e.status === 503 && attempt === 0 && (!deadline || Date.now() < deadline - 4000)) {
+        if (e.status === 503 && (!scan || ordered.length === 1) && attempt === 0 && (!deadline || Date.now() < deadline - 4000)) {
           const waitMs = Number(process.env.AI_RETRY_MS) || 800;
           await sleep(waitMs);
           continue;
@@ -148,6 +148,9 @@ const P = {
       const baseModels = P.gemini.models();
       const fastModel = cleanKey(process.env.GEMINI_FAST_MODEL) || baseModels[0];
       const list = fast ? [...new Set([fastModel, ...baseModels])] : baseModels;
+      if (scan && list.length === 1 && !list.includes(DEFAULT_GEMINI_MODELS[0])) {
+        list.push(DEFAULT_GEMINI_MODELS[0]);
+      }
       const attemptMax = (scan && (Number(process.env.AI_SCAN_ATTEMPT_MS) || 19000)) || Number(process.env.AI_ATTEMPT_MS) || (fast ? 12000 : 15000);
 
       return tryModels('gemini', list, deadline, async model => {
