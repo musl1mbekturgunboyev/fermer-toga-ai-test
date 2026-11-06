@@ -19,9 +19,9 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash-lite
+        value: gemini-3.5-flash-lite
       - key: GEMINI_FAST_MODEL
-        value: gemini-2.5-flash-lite
+        value: gemini-3.5-flash-lite
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL

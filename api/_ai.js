@@ -20,12 +20,19 @@ const fail = (r, j) => {
 
 const cleanKey = k => String(k || '').trim().replace(/^["']|["']$/g, '');
 const models = (env, def) => [...new Set([ cleanKey(process.env[env]), ...def ].filter(Boolean))];
+async function providerFetch(url, options) {
+  try {
+    return await fetch(url, options);
+  } catch (error) {
+    if (isTimeout(error)) throw error;
+    throw Object.assign(new Error('AI provayderiga ulanish uzildi'), {status: 502});
+  }
+}
+
 const SWITCH = [400, 404, 408, 429, 500, 502, 503, 504];
 const isTimeout = e => !!(e && (e.name === 'TimeoutError' || e.name === 'AbortError' || /timeout|aborted|Vaqt tugadi/i.test(e.message || '')));
 
 const DEFAULT_GEMINI_MODELS = [
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash',
   'gemini-3.5-flash-lite',
   'gemini-3.8-flash',
   'gemini-flash-latest'
@@ -89,7 +96,7 @@ const P = {
   openai: {
     key: () => cleanKey(process.env.OPENAI_API_KEY),
     models: () => models('OPENAI_MODEL', DEFAULT_OPENAI_MODELS),
-    call({ system, user, images, json, max, deadline }) {
+    call({ system, user, images, json, max, deadline, parse }) {
       const key = P.openai.key();
       const content = images && images.length
         ? [{ type: 'text', text: user }, ...images.map(u => ({ type: 'image_url', image_url: { url: u, detail: 'high' } }))]
@@ -98,7 +105,7 @@ const P = {
       return tryModels('openai', P.openai.models(), deadline, async model => {
         const rem = deadline ? deadline - Date.now() - 500 : attemptMax;
         if (rem < 1500) throw Object.assign(new Error('Vaqt tugadi'), { name: 'TimeoutError', status: 504 });
-        const r = await fetch('https://api.openai.com/v1/chat/completions', {
+        const r = await providerFetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           signal: T(Math.min(attemptMax, rem)),
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
@@ -112,16 +119,17 @@ const P = {
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) throw fail(r, j);
-        const t = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
-        if (!t) throw Object.assign(new Error('Bo‘sh javob'), { status: 502 });
-        return t;
+        const choice = j.choices?.[0];
+        const t = choice?.message?.content?.trim();
+        if (!t || (json && choice.finish_reason === 'length')) throw Object.assign(new Error('Bo‘sh javob'), { status: 502 });
+        return parse ? parse(t) : t;
       });
     }
   },
   gemini: {
     key: () => cleanKey(process.env.GEMINI_API_KEY),
     models: () => models('GEMINI_MODEL', DEFAULT_GEMINI_MODELS),
-    call({ system, user, images, json, max, deadline, fast }) {
+    call({ system, user, images, json, max, deadline, fast, parse }) {
       const key = P.gemini.key();
       const imgParts = (images || []).map(u => {
         const m = /^data:([^;]+);base64,(.+)$/s.exec(u || '');
@@ -130,8 +138,8 @@ const P = {
       });
       const parts = [{ text: String(user || '') }, ...imgParts];
       const baseModels = P.gemini.models();
-      const fastModel = cleanKey(process.env.GEMINI_FAST_MODEL) || 'gemini-2.5-flash-lite';
-      const list = fast ? [...new Set([fastModel, ...baseModels])] : baseModels;
+      const fastModel = cleanKey(process.env.GEMINI_FAST_MODEL) || 'gemini-3.5-flash-lite';
+      const list = fast ? [...new Set([cleanKey(process.env.GEMINI_FAST_MODEL), ...baseModels, fastModel].filter(Boolean))] : baseModels;
       const attemptMax = Number(process.env.AI_ATTEMPT_MS) || (fast ? 12000 : 15000);
 
       return tryModels('gemini', list, deadline, async model => {
@@ -149,7 +157,7 @@ const P = {
         };
         if (system) body.systemInstruction = { parts: [{ text: String(system) }] };
 
-        const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
+        const r = await providerFetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
           method: 'POST',
           signal: T(Math.min(attemptMax, rem)),
           headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
@@ -159,13 +167,12 @@ const P = {
         if (!r.ok) throw fail(r, j);
         const cand = j.candidates && j.candidates[0];
         const candParts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : [];
-        const t = candParts.filter(p => !p.thought).map(p => p.text || '').join('').trim()
-          || candParts.map(p => p.text || '').join('').trim();
+        const t = candParts.filter(p => !p.thought).map(p => p.text || '').join('').trim();
         if (!t) {
           const blockReason = (j.promptFeedback && j.promptFeedback.blockReason) || (cand && cand.finishReason) || '';
           throw Object.assign(new Error('Bo‘sh javob' + (blockReason ? ' (' + blockReason + ')' : ' (xavfsizlik filtri bo‘lishi mumkin)')), { status: 502 });
         }
-        return t;
+        return parse ? parse(t) : t;
       });
     }
   }
@@ -188,23 +195,27 @@ function parseJson(raw) {
 
 async function run(opts, parse) {
   const totalMs = Math.min(Number(process.env.AI_DEADLINE_MS) || 45000, 48000);
-  opts = { ...opts, deadline: Date.now() + totalMs };
+  const deadline = Date.now() + totalMs;
   const order = (process.env.AI_PRIORITY || 'openai,gemini')
     .split(',')
     .map(s => s.trim().toLowerCase())
-    .filter(n => P[n] && P[n].key());
+    .filter(n => Object.hasOwn(P, n) && P[n].key());
   if (!order.length) throw Object.assign(new Error('AI kalitlari sozlanmagan'), { code: 'no_key', status: 503 });
 
   const now = Date.now();
-  const ready = order.filter(n => !(cool[n] > now));
-  const list = ready.length ? ready : order;
+  const list = [
+    ...order.filter(n => !(cool[n] > now)),
+    ...order.filter(n => cool[n] > now)
+  ];
   let last;
   const tried = [];
 
-  for (const n of list) {
+  for (const [index, n] of list.entries()) {
     try {
-      const text = await P[n].call(opts);
-      const data = parse ? parse(text) : text;
+      // Reserve a share of the remaining time for each configured provider.
+      const now = Date.now();
+      const providerDeadline = now + Math.floor((deadline - now) / (list.length - index));
+      const data = await P[n].call({ ...opts, parse, deadline: providerDeadline });
       delete cool[n];
       return { provider: n, model: good[n], data };
     } catch (e) {
@@ -220,6 +231,7 @@ async function run(opts, parse) {
   throw last;
 }
 
+exports.configured = () => Object.values(P).some(provider => provider.key());
 exports.chat = (system, user, max, images) => run({ system, user, images, max: max || 700 });
 exports.vision = (system, user, images, max, fast) => run({ system, user, images, json: true, max: max || 650, fast: !!fast }, parseJson);
 exports.parseJson = parseJson;
@@ -239,13 +251,12 @@ exports.status = () => Object.keys(P).map(n => ({
 exports.explain = e => {
   const m = mask((e && e.message) || '');
   const st = e && e.status;
-  const tag = e && e.tried && e.tried.length ? ' [' + e.tried.map(mask).join(' | ') + ']' : '';
   const t = e && e.code === 'no_key'
     ? 'AI hali sozlanmagan. Administrator serverga AI kalitini (GEMINI_API_KEY yoki OPENAI_API_KEY) kiritishi kerak.'
     : /API key not valid|API_KEY_INVALID|Incorrect API key|invalid_api_key/i.test(m)
-      ? 'AI kaliti noto‘g‘ri. Administrator kalitni qayta nusxalab, Render’ga qo‘shtirnoqsiz va bo‘sh joysiz kiritsin.'
+      ? 'AI kaliti noto‘g‘ri. Administrator serverdagi API kalitini tekshirishi kerak.'
       : /location is not supported|unsupported_country|not available in your (country|region)|User location is not supported|territory/i.test(m)
-        ? 'AI xizmati server joylashgan hududda mavjud emas. Administrator Render regionini AQSh (Oregon/Ohio) ga o‘zgartirishi kerak.'
+        ? 'AI xizmati server joylashgan hududda mavjud emas. Administrator mavjud AI provayderini sozlashi kerak.'
         : /quota|billing|RESOURCE_EXHAUSTED|rate limit|insufficient/i.test(m) || [402, 429].includes(st)
           ? 'AI bepul limiti (kvota) hozircha tugagan. Birozdan keyin qayta urinib ko‘ring yoki pullik tarif / ikkinchi AI kalitini ulang.'
           : [401, 403].includes(st)
@@ -253,11 +264,11 @@ exports.explain = e => {
             : st === 404 || /is not found|not supported for generateContent|shut down/i.test(m)
               ? 'AI modeli topilmadi yoki eskirgan. Administrator model nomini yangilashi kerak.'
               : /Bo‘sh javob|JSON/i.test(m)
-                ? 'AI javobni to‘liq qaytarmadi (xavfsizlik filtri yoki rasm noaniq bo‘lishi mumkin). Boshqa aniqroq rasm bilan urinib ko‘ring.'
+                ? 'AI javobni to‘liq qaytarmadi. Savolni yoki rasmni aniqlashtirib, qayta urinib ko‘ring.'
                 : isTimeout(e) || st === 504
                   ? 'AI javobi kechikdi. Rasmni kichraytirib yoki birozdan keyin qayta urinib ko‘ring.'
                   : 'AI xizmati hozir band. Birozdan keyin qayta urinib ko‘ring.';
-  return t + tag;
+  return t;
 };
 
 async function listGeminiModels() {
@@ -294,7 +305,7 @@ exports.test = async () => {
       if (avail.length) extra.availableModels = avail.filter(m => /flash|pro/i.test(m)).slice(0, 12);
     }
     try {
-      await P[n].call({ user: 'Reply with the single word OK', max: 30, fast: true, deadline: Date.now() + 25000 });
+      await P[n].call({ user: 'Reply with the single word OK', max: 128, fast: true, deadline: Date.now() + 25000 });
       out.push({ provider: n, key: true, ok: true, model: good[n], ms: Date.now() - t0, ...extra });
     } catch (e) {
       out.push({

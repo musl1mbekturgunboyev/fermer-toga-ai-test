@@ -24,6 +24,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Rasm yuklanmadi. JPG yoki PNG formatidan foydalaning.' });
   }
 
+  if (!ai.configured()) return res.status(503).json({ error: ai.explain({ code: 'no_key' }) });
   if(!await require('./_billing').quota(u.id,'scan',res))return;
   const lang = String(b.lang || 'uz').toLowerCase();
   const langPrompt = LANG_MAP[lang] || LANG_MAP.uz;
@@ -44,7 +45,7 @@ Estimate weights consistently based on proven livestock biological standards:
 Evaluate Body Condition Score (BCS 1 to 5). Never prescribe pharmaceutical dosages.`;
 
   const prompt = `Perform a thorough visual biometric evaluation of the farm animal in the photo (Declared species: ${type}, declared age: ${age || 'infer from photo'}).
-Return ONLY a valid JSON object with these exact keys translated into ${langPrompt}:
+Return ONLY a valid JSON object with these exact keys unchanged and text values in ${langPrompt}:
 {
   "species": "species name",
   "breed": "breed name",
@@ -64,16 +65,19 @@ Return ONLY a valid JSON object with these exact keys translated into ${langProm
 }`;
 
   try {
-    const r = await ai.vision(SYS, prompt, imgs, 750, true);
+    const r = await ai.vision(SYS, prompt, imgs, 1300, true);
     const d = r.data || {};
     const parsedKg = Number(d.weight_kg) || (
       (() => {
         const m = /(\d{2,4})\s*[-–—]\s*(\d{2,4})/.exec(String(d.weight || ''));
         if (m) return Math.round((+m[1] + +m[2]) / 2);
         const s = /(\d{2,4})/.exec(String(d.weight || ''));
-        return s ? +s[1] : 320;
+        return s ? +s[1] : 0;
       })()
     );
+    if (!Number.isFinite(parsedKg) || parsedKg <= 0) {
+      return res.status(502).json({ error: 'AI vaznni aniqlay olmadi. Jonivor to‘liq ko‘ringan rasmni yuklang.' });
+    }
     const weightStr = String(d.weight || (parsedKg + ' kg'));
 
     res.json({

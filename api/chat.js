@@ -23,6 +23,7 @@ module.exports = async (req, res) => {
 
   if (!m && !imgs.length) return res.status(400).json({ error: 'Savol yoki rasm kiriting' });
 
+  if (!ai.configured()) return res.status(503).json({ error: ai.explain({ code: 'no_key' }) });
   if(!await require('./_billing').quota(u.id,'chat',res))return;
   const lang = String(b.lang || 'uz').toLowerCase();
   const langPrompt = LANG_MAP[lang] || LANG_MAP.uz;

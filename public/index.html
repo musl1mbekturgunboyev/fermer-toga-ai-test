@@ -109,6 +109,19 @@ dialog.market-dialog{border:1px solid var(--bd);border-radius:20px;background:va
 @media(prefers-reduced-motion:reduce){.featured-slide,.listing-card .listing-photo img{transition:none!important}.scan .line{animation:none!important}}
 
 .ai-typing{font-size:.8rem;color:var(--mut);padding:7px 12px;display:flex;gap:7px;align-items:center}.ai-typing i{width:5px;height:5px;border-radius:50%;background:var(--g);animation:aiPulse 1s infinite alternate}.ai-typing i:nth-child(2){animation-delay:.2s}.ai-typing i:nth-child(3){animation-delay:.4s}@keyframes aiPulse{to{opacity:.25;transform:translateY(-3px)}}@media(prefers-reduced-motion:reduce){.ai-typing i{animation:none}}
+
+.trend{background:linear-gradient(145deg,var(--gl),transparent 70%),var(--card,#fff)}
+.trend-head,.trend-filters{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.trend-head h3{margin:6px 0}.trend-head a,.trend-empty a{font-weight:700}
+.trend-filters{justify-content:flex-start;margin:16px 0}
+.trend-filters label{display:grid;gap:4px;font-size:.85rem;flex:1 1 145px;min-width:0}
+.trend-filters select{padding:8px;width:100%;min-height:40px}
+.trend-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.trend-kpis div,.trend-empty{border:1px solid var(--bd);border-radius:14px;padding:12px}
+.trend-kpis span,.trend-kpis strong{display:block}
+.trend-kpis span{color:var(--mut);font-size:.85rem}.trend-kpis strong{font-size:1.35rem}
+.trend-plot{margin-top:16px;overflow:auto}.trend-plot svg{width:100%;min-width:360px;color:var(--mut)}
+.trend-plot text{fill:currentColor;font-size:12px}
 </style>
 <link rel="icon" type="image/png" href="/favicon.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><meta property="og:image" content="/logo-full.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -264,10 +277,59 @@ ${reg?`<div class="field"><label for="r">Viloyat</label><select id="r">${["Toshk
 function nav(a){const l=[["#/app","🏠","Bosh sahifa","Bosh"],["#/animals","🐄","Chorvalar","Chorvalar"],["#/scan","📷","AI Scan","Skaner"],["#/assistant","💬","AI yordamchi","Yordamchi"],["#/reminders","🔔","Eslatmalar","Eslatma"]];
 return `<aside class="side" aria-label="Asosiy menyu"><a class="brand" href="#/app" style="padding:6px 8px 16px">${logo(34)}<span>Fermer Tog‘a AI</span></a>${l.map(x=>`<a href="${x[0]}" class="${a==x[0]?'on':''}"><span aria-hidden="true">${x[1]}</span>${x[2]}</a>`).join('')}${X.concat(S.admin?[["#/admin","🛡️","Admin"]]:[]).map(x=>`<a href="${x[0]}" class="${a==x[0]?'on':''}"><span aria-hidden="true">${x[1]}</span>${x[2]}</a>`).join('')}<a href="#/" id="lo" style="margin-top:auto">↩ Hisobdan chiqish</a></aside><nav class="bn" aria-label="Pastki menyu">${l.map(x=>`<a href="${x[0]}" class="${a==x[0]?'on':''}"><span style="font-size:1.35rem" aria-hidden="true">${x[1]}</span>${x[3]}</a>`).join('')}</nav>`}
 const shell=(a,body)=>`<div class="app">${nav(a)}<main class="main">${body}</main></div>`;
+function weightTrend(){
+  const filters=S.weightTrend||{animal:'',days:'90',source:'measured'};
+  const today=new Date(Date.now()+5*36e5).toISOString().slice(0,10);
+  const cutoff=new Date(Date.parse(today)-(Number(filters.days)-1)*864e5);
+  const active=new Set(S.animals.map(a=>String(a.id)));
+  const byDay=new Map();
+  for(const row of S.weight){
+    const id=String(row.a),kg=Number(row.kg),date=row.d;
+    if(!active.has(id)||(filters.animal&&filters.animal!==id)||!Number.isFinite(kg)||kg<=0)continue;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date))||date>today)continue;
+    if(filters.days!=='all'&&Date.parse(date)<cutoff.getTime())continue;
+    if((/^ai\b/i.test(row.m||''))!==(filters.source==='scan'))continue;
+    if(!byDay.has(date))byDay.set(date,new Map());
+    // Entries are stored newest first. Use the latest entry per animal per day.
+    if(!byDay.get(date).has(id))byDay.get(date).set(id,kg);
+  }
+  const points=[...byDay].sort(([a],[b])=>a.localeCompare(b)).map(([date,values])=>({
+    date,count:values.size,kg:[...values.values()].reduce((a,b)=>a+b,0)/values.size
+  }));
+  const fmt=n=>new Intl.NumberFormat('uz-UZ',{maximumFractionDigits:1}).format(n);
+  const options=(values,selected)=>values.map(([key,label])=>`<option value="${esc(key)}" ${selected===String(key)?'selected':''}>${esc(label)}</option>`).join('');
+  const filtersHtml=`<div class="trend-filters"><label>Hayvon<select data-trend="animal">${options([['','Barcha hayvonlar'],...S.animals.map(a=>[a.id,a.name+' · '+a.id])],filters.animal)}</select></label><label>Davr<select data-trend="days">${options([['30','30 kun'],['90','90 kun'],['all','Barcha vaqt']],filters.days)}</select></label><label>Manba<select data-trend="source">${options([['measured','Tarozi / lenta'],['scan','AI Scan · taxminiy']],filters.source)}</select></label></div>`;
+  let content=`<p class="trend-empty">Bu tanlovda vazn yozuvi yo‘q. <a href="#/weight">Vazn kiritish →</a></p>`;
+  if(points.length){
+    const first=points[0],last=points.at(-1),delta=last.kg-first.kg;
+    const low=Math.min(...points.map(p=>p.kg)),high=Math.max(...points.map(p=>p.kg));
+    const pad=Math.max(1,(high-low)*.15,high*.025),min=Math.max(0,low-pad),max=high+pad;
+    const start=Date.parse(first.date),span=Date.parse(last.date)-start;
+    const coords=points.map(p=>[span?56+644*(Date.parse(p.date)-start)/span:378,164-146*(p.kg-min)/(max-min)]);
+    const line=coords.map(([x,y])=>`${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+    const grid=[0,.25,.5,.75,1].map(t=>`<line x1="56" x2="700" y1="${164-t*146}" y2="${164-t*146}" stroke="currentColor" opacity=".18"/><text x="49" y="${168-t*146}" text-anchor="end">${fmt(min+t*(max-min))}</text>`).join('');
+    content=`<div class="trend-kpis"><div><span>So‘nggi kun · ${last.date}</span><strong>${fmt(last.kg)} kg</strong></div><div><span>Davr bo‘yicha farq</span><strong>${points.length<2?'—':(delta>0?'+':'')+fmt(delta)+' kg'}</strong></div><div><span>O‘lchov kunlari</span><strong>${points.length}</strong></div></div>
+    <div class="trend-plot"><svg viewBox="0 0 720 194" role="img" aria-label="Sana bo‘yicha o‘rtacha vazn, kilogrammda"><defs><linearGradient id="trend-fill" x2="0" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#27ad75" stop-opacity=".32"/><stop offset="100%" stop-color="#27ad75" stop-opacity="0"/></linearGradient></defs>${grid}
+    ${span?`<polygon points="56,164 ${line} 700,164" fill="url(#trend-fill)"/><polyline points="${line}" fill="none" stroke="#218a63" stroke-width="3" stroke-linejoin="round"/>`:''}
+    ${coords.map(([x,y],i)=>`<circle cx="${x}" cy="${y}" r="4" fill="#218a63" stroke="white"><title>${points[i].date} · ${fmt(points[i].kg)} kg · ${points[i].count} ta hayvon</title></circle>`).join('')}
+    <text x="${span?56:378}" y="188" text-anchor="${span?'start':'middle'}">${first.date}</text>${span?`<text x="700" y="188" text-anchor="end">${last.date}</text>`:''}</svg></div>
+    <p class="muted">Har nuqta — o‘sha kuni qayd etilgan hayvonlarning o‘rtacha vazni. Hayvonlar tarkibi kunlar bo‘yicha farq qilishi mumkin.</p>
+    <details><summary>Vazn yozuvlarini ko‘rish</summary>${tbl(['Sana','O‘rtacha vazn','Hayvonlar'],points.slice().reverse().map(p=>[p.date,fmt(p.kg)+' kg',p.count]))}</details>`;
+  }
+  return `<section class="card trend" id="weight-trend"><div class="trend-head"><div><span class="pill">FERMA STATISTIKASI</span><h3>O‘rtacha vazn dinamikasi</h3></div><a href="#/weight">Vazn bo‘limi →</a></div>${filtersHtml}${content}</section>`;
+}
+document.addEventListener('change',event=>{
+  const key=event.target.dataset.trend;
+  if(!key)return;
+  S.weightTrend={...(S.weightTrend||{animal:'',days:'90',source:'measured'}),[key]:event.target.value};
+  document.getElementById('weight-trend').outerHTML=weightTrend();
+  document.querySelector('[data-trend="'+key+'"]')?.focus();
+});
+
 function dashboard(){const A=S.animals;return shell("#/app",`<h1 style="font-size:1.8rem">Assalomu alaykum, ${esc(S.user||'Fermer')}!</h1><p class="muted">Bugun fermangizda nima bor</p>
 <div class="grid g4"><div class="card stat"><b>${A.length}</b>Jami hayvonlar</div><div class="card stat"><b>${A.filter(a=>a.type=='Sigir').length}</b>Sigirlar</div><div class="card stat"><b>${A.filter(a=>a.type=='Buqa').length}</b>Buqalar</div><div class="card stat"><b>${A.filter(a=>a.type=='Qo‘y').length}</b>Qo‘ylar</div><div class="card stat"><b>${S.rem.length}</b>Bugungi eslatmalar</div></div><br>
 <div class="grid g2"><a class="card" href="#/scan" style="text-decoration:none"><h3>📷 AI Scan</h3><span class="muted">Rasm orqali taxminiy tahlil</span></a><a class="card" href="#/add" style="text-decoration:none"><h3>➕ Hayvon qo‘shish</h3><span class="muted">Yangi raqamli pasport</span></a><a class="card" href="#/market" style="text-decoration:none"><h3>🛒 Hayvon bozori</h3><span class="muted">Sotish va sotib olish</span></a><a class="card" href="#/assistant" style="text-decoration:none"><h3>💬 AI yordamchi</h3><span class="muted">O‘zbek tilida savol bering</span></a></div><br>
-<div class="card"><h3>O‘rtacha vazn dinamikasi <span class="pill w">namuna ma’lumot</span></h3><div class="bars" role="img" aria-label="Oylik vazn o‘sishi grafigi">${[40,48,55,62,70,78].map((h,i)=>`<i style="height:${h}%;animation-delay:${i*80}ms"></i>`).join('')}</div></div><br>
+${weightTrend()}<br>
 <div class="card"><h3>Barcha bo‘limlar</h3><p style="display:flex;flex-wrap:wrap;gap:8px">${X.concat(S.admin?[["#/admin","🛡️","Admin"]]:[]).map(x=>`<a class="pill" style="padding:10px 14px;text-decoration:none" href="${x[0]}">${x[1]} ${x[2]}</a>`).join('')}</p></div><br><div class="card"><h3>Yaqin eslatmalar</h3>${S.rem.length?S.rem.map(r=>`<p style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0"><span>${esc(r[0])}</span><span class="pill b">${esc(r[1])}${r[2]?' · ⏰ '+esc(r[2]):''}</span></p>`).join(''):'<p class="muted">Hozircha eslatmalar yo‘q</p>'}</div>`)}
 function animals(){const q=S.q.toLowerCase();const L=S.animals.filter(a=>(a.name+a.type+a.breed).toLowerCase().includes(q));
 return shell("#/animals",`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h1 style="font-size:1.8rem">Mening chorvalarim</h1><a class="btn" href="#/add">➕ Hayvon qo‘shish</a></div><div class="field"><label for="sq">Qidirish</label><input id="sq" type="search" value="${esc(S.q)}" placeholder="Nom, tur yoki zot"></div>
@@ -445,19 +507,21 @@ function bind(h){
     const ty=$('#t').value,em={Sigir:"🐄",Buqa:"🐂",Buzoq:"🐂","Qo‘y":"🐑","Qo‘zi":"🐑",Echki:"🐐",Ot:"🐴"}[ty]||"🐾",w=$('#wt').value;
     if(S.animals.length>=((S.limits&&S.limits.animals)||10)){toast('Hayvonlar limiti tugadi. Tarifni yangilang.');return;}S.animals.unshift({id:"UZ-"+String(S.animals.length+1).padStart(3,"0"),name:nm,type:ty,breed:"Kiritilmagan",sex:$('#sx').value,age:ag,w:w?w+" kg (o‘lchangan)":"Noma’lum",h:"Sog‘lom",e:em});
     toast("Hayvon qo‘shildi");location.hash="#/animals"};
-  const sf=$('#sf');if(sf)sf.onsubmit=async e=>{e.preventDefault();const f=$('#im').files;
+  const sf=$('#sf');if(sf)sf.onsubmit=async e=>{e.preventDefault();if(S.scanPending)return;const f=$('#im').files;
     if(!f.length){$('#er').textContent="Rasm yuklanmadi. JPG yoki PNG formatidan foydalaning.";return}
     if([...f].some(x=>!/^image\/(jpeg|png)$/.test(x.type))){$('#er').textContent="Rasm yuklanmadi. JPG yoki PNG formatidan foydalaning.";return}
     const targetAid=($('#sa_id')&&$('#sa_id').value)||'';
-    $('#er').textContent="";$('#res').innerHTML='<br><div class="scan" style="max-width:420px"><div class="frame"></div><div class="line"></div><div class="tag">Tahlil qilinmoqda…</div></div>';
+    S.scanPending=true;const scanButton=sf.querySelector('button[type=submit],button:not([type])');if(scanButton)scanButton.disabled=true;
+    const scanResult=$('#res');$('#er').textContent="";scanResult.innerHTML='<br><div class="scan" style="max-width:420px"><div class="frame"></div><div class="line"></div><div class="tag">Tahlil qilinmoqda…</div></div>';
     try{const r=await AIService.scan({type:$('#st').value,age:$('#sa').value,files:f});
       r.targetAid=targetAid;
       stampScanToModules(r);
       S.lastScan=r;
       await persistNow();
-      $('#res').innerHTML=resultCard(r);
+      if(scanResult.isConnected)scanResult.innerHTML=resultCard(r);
       toast("✅ Ma’lumotlar Pasport, Vazn, Ozuqa, Sog‘liq, Emlash va AI Chatga muhrlandi!")}
-    catch(x){$('#res').innerHTML='<p class="disc">'+esc((x&&x.message)||'AI tahlilini amalga oshirishda muammo yuz berdi. Iltimos, rasmni qayta yuklang.')+'</p>'}};
+    catch(x){if(scanResult.isConnected)scanResult.innerHTML='<p class="disc">'+esc((x&&x.message)||'AI tahlilini amalga oshirishda muammo yuz berdi. Iltimos, rasmni qayta yuklang.')+'</p>';}
+    finally{S.scanPending=false;if(scanButton)scanButton.disabled=false;if(!scanResult.isConnected&&location.hash==='#/scan')render();}};
   const cf=$('#cf');if(cf){
     const cim=$('#cim'),cprev=$('#cprev'),cbtn=$('#cimgbtn');
     if(cbtn&&cim){cbtn.onclick=()=>cim.click();cim.onchange=()=>{S.chatImgs=[];cprev.innerHTML='';[...cim.files].slice(0,3).forEach(async fl=>{if(!/^image\/(jpeg|png)$/.test(fl.type))return;const dUrl=await b64(await comp(fl));S.chatImgs.push(dUrl);cprev.insertAdjacentHTML('beforeend',`<img src="${esc(dUrl)}" alt="Tanlangan rasm" style="width:68px;height:52px;object-fit:cover;border-radius:8px;border:1.5px solid var(--g)">`)})}}
@@ -661,7 +725,7 @@ AIService.scan=async o=>{const files=[...o.files].slice(0,3);const bl=await Prom
   const thumb=await thumbB64(files[0]);
   try{const {data}=await SB.auth.getSession();SB.storage.from('animal-photos').upload(data.session.user.id+'/'+Date.now()+'.jpg',bl[0],{contentType:'image/jpeg'})}catch(_){}
   const j=await api('/api/scan',{images:await Promise.all(bl.map(b64)),type:o.type,age:o.age,lang:S.lang||localStorage.getItem('ft_lang')||'uz'});return {...j,img:thumb,mock:false}};
-AIService.chat=async(q,imgs)=>{const hist=(S.chatLog||[]).slice(-6).map(m=>(m.role=='u'?'Mijoz: ':'AI: ')+m.text).join('\n');const anCtx=S.animals.slice(0,12).map(a=>`${a.name} (${a.id}): ${a.type}, zot ${a.breed}, yosh ${a.age}, vazn ${a.w}, holati ${a.h}`).join('; ');return await api('/api/chat',{message:q,images:imgs||[],context:`Hayvonlar: ${anCtx}\nOxirgi suhbat:\n${hist}`})};
+AIService.chat=async(q,imgs)=>{const hist=(S.chatLog||[]).slice(-6).map(m=>(m.role=='u'?'Mijoz: ':'AI: ')+m.text).join('\n');const anCtx=S.animals.slice(0,12).map(a=>`${a.name} (${a.id}): ${a.type}, zot ${a.breed}, yosh ${a.age}, vazn ${a.w}, holati ${a.h}`).join('; ');return await api('/api/chat',{message:q,images:imgs||[],lang:S.lang||'uz',context:`Hayvonlar: ${anCtx}\nOxirgi suhbat:\n${hist}`})};
 const KEYS=['animals','weight','health','vacc','farm','rem','lang','fp','chatLog'];
 const fresh=()=>Object.assign(S,{animals:[],weight:[],health:[],vacc:[],rem:[],farm:{fn:'',fr:'',fd:''},plan:'Bepul',fp:null,chatLog:[]});
 async function onSession(se){if(S.sessionReady===se.user.id&&DB)return;if(S.sessionLoading)return S.sessionLoading;S.sessionLoading=loadSession(se);try{return await S.sessionLoading;}catch(e){DB=null;S.sessionReady=null;throw e;}finally{S.sessionLoading=null;}}
