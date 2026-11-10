@@ -17,10 +17,10 @@ function fixture(t, { accepted = true, quota = true, data = result } = {}) {
   lib.resetRateLimits();
   ai.configured = () => true;
   ai.vision = async () => { calls.ai++; return { data, provider: 'mock' }; };
-  global.fetch = async url => {
+  global.fetch = async (url,options) => {
     if (url.endsWith('/auth/v1/user')) return Response.json({ id: 'agro-user' });
     if (url.includes('terms_acceptances')) return Response.json(accepted ? [{ user_id: 'agro-user' }] : []);
-    if (url.includes('consume_ai_quota')) { calls.quota++; return Response.json(quota); }
+    if (url.includes('consume_ai_quota')) { assert.equal(JSON.parse(options.body).p_kind,'agro'); calls.quota++; return Response.json(quota); }
     throw Error('Unexpected external request');
   };
   t.after(() => { global.fetch = original.fetch; ai.vision = original.vision; ai.configured = original.configured; });

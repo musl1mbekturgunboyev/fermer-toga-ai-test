@@ -26,7 +26,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: '1–3 ta haqiqiy JPG yoki PNG rasm yuklang.' });
   }
   if (!ai.configured()) return res.status(503).json({ error: ai.explain({ code: 'no_key' }) });
-  if (!await quota(user.id, 'scan', res)) return;
+  if (!await quota(user.id, 'agro', res)) return;
 
   const system = `You are Agro scan, a cautious crop and plant visual assessment assistant in Fermer Tog‘a AI.
 Write all human-readable values in ${LANGUAGES[body.lang] || LANGUAGES.uz}. Keep JSON keys in English.

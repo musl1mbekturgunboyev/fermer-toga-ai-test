@@ -1,7 +1,5 @@
-.env
-.env.local
-node_modules
-.vercel
-.vapid.json
 
-dist/
+.env
+.env.*
+!.env.example
+.vapid.json
