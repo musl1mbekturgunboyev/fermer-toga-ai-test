@@ -29,18 +29,7 @@ const T = {
   '.ico': 'image/x-icon'
 };
 
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in",
-  "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co",
-  "font-src 'self' data:",
-  "worker-src 'self' blob:",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'"
-].join('; ');
+const HEADERS = require('./security-headers').securityHeaders();
 
 const pub = path.join(__dirname, 'public');
 
@@ -51,11 +40,7 @@ function createHandler() {
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(JSON.stringify(o));
     };
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
-    res.setHeader('Content-Security-Policy', CSP);
+    for (const [name, value] of Object.entries(HEADERS)) res.setHeader(name, value);
 
     const u = new URL(req.url || '/', 'http://x');
     if (u.pathname === '/healthz' || u.pathname === '/api/health') {

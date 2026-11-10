@@ -11,7 +11,8 @@
     "test": "node --test tests/*.test.js",
     "test:e2e": "python3 tests/e2e_smoke.py",
     "build": "node scripts/build-worker.cjs",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "security:headers": "node scripts/sync-security-headers.cjs"
   },
   "dependencies": {
     "web-push": "^3.6.7"
